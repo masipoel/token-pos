@@ -273,7 +273,7 @@
 
         try {
             const encoder = new TextEncoder();
-            const logoBytes = await getLogoPrintData(logoURL, 144); // 240 dots untuk ukuran proporsional di 80mm
+            const logoBytes = await getLogoPrintData(logoURL, 144); // 144 dots untuk ukuran proporsional di 80mm
             
             const initCmd = new Uint8Array([0x1B, 0x40]); 
             const alignCenterCmd = new Uint8Array([0x1B, 0x61, 0x01]); 
@@ -395,11 +395,22 @@
             "Indonesia\n" +
             "------------------------------------------\n" +
             centerText("Simpan resi ini sbg bukti bayar sah.") + "\n\n" +
+            centerText("Kami sangat menghargai privasi Bp/Ibu.") + "\n\n" +
+            centerText("Informasi data pribadi yang diberikan") + "\n\n" +
+            centerText("hanya diproses untuk penyelenggaraan") + "\n\n" +
+            centerText("layanan yang Bp/Ibu gunakan. Data Pribadi") + "\n\n" +
+            centerText("yang disertakan dalam transaksi ini") + "\n\n" +
+            centerText("diproses sesuai dengan kebijakan privasi yang berlaku dan dapat diakses pada") + "\n\n" +
+            `<span class="bold-text">` + centerText("www.posindonesia.co.id") + `</span>\n\n` +
             centerText("Terima kasih telah memilih kami,") + "\n" +
             centerText("Sampai jumpa di transaksi berikutnya...") + "\n\n" +
-            centerText("(Tlp) Halo Pos 1500161") + "\n";
+            centerText("📞 Halo Pos 1500161   📷@posindonesia.ig") + "\n";
 
-        const strukMurni = strukBaseTeks.replace(/<[^>]*>?/gm, '');
+        // Menerjemahkan tag HTML menjadi perintah tebal ESC/POS untuk printer fisik
+        let strukMurni = strukBaseTeks.replace(/<span class="bold-text">/g, '\x1B\x45\x01'); // Bold ON
+        strukMurni = strukMurni.replace(/<\/span>/g, '\x1B\x45\x00'); // Bold OFF
+        strukMurni = strukMurni.replace(/<[^>]*>?/gm, ''); // Hapus sisa tag HTML lainnya
+
         const logoURL = "logo.png"; // Harus ada di folder yang sama
         
         let modalHTML = 
