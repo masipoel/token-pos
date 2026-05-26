@@ -273,7 +273,7 @@
 
         try {
             const encoder = new TextEncoder();
-            const logoBytes = await getLogoPrintData(logoURL, 160); // 240 dots untuk ukuran proporsional di 80mm
+            const logoBytes = await getLogoPrintData(logoURL, 144); // 240 dots untuk ukuran proporsional di 80mm
             
             const initCmd = new Uint8Array([0x1B, 0x40]); 
             const alignCenterCmd = new Uint8Array([0x1B, 0x61, 0x01]); 
