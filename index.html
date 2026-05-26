@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loket POS - Token Listrik V3 (Dengan Logo Dinamis)</title>
+    <style>
+        body { font-family: Helvetica, Arial, sans-serif; background-color: #f0f0f0; display: flex; justify-content: center; padding-top: 20px; }
+        .container { width: 420px; background-color: #f0f0f0; padding: 10px 20px; box-sizing: border-box; }
+        h2 { text-align: center; font-size: 18px; margin-bottom: 15px; margin-top: 5px; }
+        fieldset { border: 1px solid #b0b0b0; border-radius: 4px; padding: 10px; margin-bottom: 15px; }
+        legend { padding: 0 5px; font-size: 14px; }
+        .flex-row { display: flex; gap: 10px; align-items: center; }
+        select, input[type="text"] { padding: 4px; border: 1px solid #a0a0a0; border-radius: 2px; font-family: sans-serif; font-size: 13px; }
+        .btn-scan { background-color: #008CBA; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; }
+        .btn-scan:hover { background-color: #007399; }
+        .form-grid { display: grid; grid-template-columns: 130px 1fr; gap: 10px 0; align-items: center; margin-bottom: 20px; }
+        .form-grid label { font-size: 14px; }
+        .form-grid input, .form-grid select { width: 220px; }
+        .btn-cetak { width: 100%; background-color: #ff7300; color: white; border: none; padding: 10px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 4px; margin-bottom: 20px; }
+        .btn-cetak:hover { background-color: #e66800; }
+        .btn-cetak:disabled { background-color: #ccc; cursor: not-allowed; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal-content { background-color: white; padding: 20px; border-radius: 5px; width: 480px; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+        .modal-header h3 { margin: 0; font-size: 16px; }
+        .close-btn { background: none; border: none; font-size: 18px; font-weight: bold; cursor: pointer; }
+        .struk-area { width: 100%; height: 450px; background-color: #fff; border: 1px solid #ccc; font-family: 'Courier New', Courier, monospace; font-size: 13px; padding: 10px; overflow-y: auto; white-space: pre; box-sizing: border-box; }
+        .bold-text { font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Cetak Struk POS - Token PLN</h2>
+
+    <fieldset>
+        <legend> Pengaturan Printer Bluetooth </legend>
+        <div class="flex-row">
+            <select id="combo_port" style="width: 230px;">
+                <option value="none">Pilih Printer...</option>
+            </select>
+            <button class="btn-scan" onclick="pindaiPrinter()">Pindai Printer</button>
+        </div>
+        <small style="color: red; display: none; margin-top: 5px;" id="statusPrinter">Status: Belum Terhubung</small>
+    </fieldset>
+
+    <div class="form-grid">
+        <label>Lokasi KPC:</label>
+        <input type="text" id="entry_kpc" value="Kpc Prafi 98356">
+
+        <label>No. Meter:</label>
+        <input type="text" id="entry_meter" value="14510802540">
+
+        <label>IDPEL (Pilih/Ketik):</label>
+        <input type="text" id="combo_idpel" value="424230002019" list="idpel_list" onchange="isiOtomatis()">
+        <datalist id="idpel_list"></datalist>
+
+        <label>Nama Pelanggan:</label>
+        <input type="text" id="entry_nama" value="P U S K E S M A S">
+
+        <label>Tarif / Daya:</label>
+        <select id="combo_daya">
+            <option value="R1/450 VA">R1/450 VA</option>
+            <option value="R1/900 VA">R1/900 VA</option>
+            <option value="S1/3500 VA" selected>S1/3500 VA</option>
+            <option value="B1/2200 VA">B1/2200 VA</option>
+        </select>
+
+        <label>RP STROOM:</label>
+        <select id="combo_nominal">
+            <option value="50000">50000</option>
+            <option value="100000">100000</option>
+            <option value="1000000" selected>1000000</option>
+        </select>
+
+        <label>Tanggal Transaksi:</label>
+        <input type="text" id="entry_tanggal">
+    </div>
+
+    <button class="btn-cetak" id="btnCetak" onclick="prosesTransaksi()">CETAK STRUK IDENTIK V3</button>
+</div>
+
+<div class="modal-overlay" id="modalStruk">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Hasil Cetak / Riwayat</h3>
+            <button class="close-btn" onclick="tutupSimulasi()">×</button>
+        </div>
+        <div class="struk-area" id="strukOutput"></div>
+    </div>
+</div>
+
+<script>
+    let bluetoothDevice = null;
+    let printerCharacteristic = null;
+    let dataTersimpan = { riwayat: {} };
+
+    window.onload = function() {
+        setWaktuSekarang();
+        loadData();
+    };
+
+    function setWaktuSekarang() {
+        const now = new Date();
+        const dd = String(now.getDate()).padStart(2, '0');
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const yyyy = now.getFullYear();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const min = String(now.getMinutes()).padStart(2, '0');
+        const ss = String(now.getSeconds()).padStart(2, '0');
+        document.getElementById('entry_tanggal').value = `${dd}-${mm}-${yyyy} ${hh}:${min}:${ss}`;
+    }
+
+    function loadData() {
+        const saved = localStorage.getItem('config_pos');
+        if (saved) {
+            try {
+                dataTersimpan = JSON.parse(saved);
+                perbaruiDatalist();
+            } catch (e) { console.error(e); }
+        }
+    }
+
+    function perbaruiDatalist() {
+        const list = document.getElementById('idpel_list');
+        list.innerHTML = '';
+        for (const id in dataTersimpan.riwayat) {
+            const option = document.createElement('option');
+            option.value = id;
+            list.appendChild(option);
+        }
+    }
+
+    function saveData() {
+        const idpel = document.getElementById('combo_idpel').value.trim();
+        if (idpel) {
+            dataTersimpan.riwayat[idpel] = {
+                kpc: document.getElementById('entry_kpc').value,
+                meter: document.getElementById('entry_meter').value,
+                nama: document.getElementById('entry_nama').value,
+                daya: document.getElementById('combo_daya').value
+            };
+            localStorage.setItem('config_pos', JSON.stringify(dataTersimpan));
+            perbaruiDatalist();
+        }
+    }
+
+    function isiOtomatis() {
+        const idpel = document.getElementById('combo_idpel').value;
+        if (dataTersimpan.riwayat[idpel]) {
+            const data = dataTersimpan.riwayat[idpel];
+            document.getElementById('entry_kpc').value = data.kpc || "";
+            document.getElementById('entry_meter').value = data.meter || "";
+            document.getElementById('entry_nama').value = data.nama || "";
+            document.getElementById('combo_daya').value = data.daya || "S1/3500 VA";
+        }
+    }
+
+    async function pindaiPrinter() {
+        if (!navigator.bluetooth) {
+            alert("Browser Anda tidak mendukung Web Bluetooth API. Pastikan akses via HTTPS atau localhost.");
+            return;
+        }
+        try {
+            document.getElementById('statusPrinter').style.display = 'block';
+            document.getElementById('statusPrinter').innerText = 'Status: Memindai...';
+            document.getElementById('statusPrinter').style.color = 'orange';
+
+            bluetoothDevice = await navigator.bluetooth.requestDevice({
+                acceptAllDevices: true,
+                optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2']
+            });
+
+            const server = await bluetoothDevice.gatt.connect();
+            const services = await server.getPrimaryServices();
+            let foundCharacteristic = false;
+
+            for (const service of services) {
+                const characteristics = await service.getCharacteristics();
+                for (const characteristic of characteristics) {
+                    if (characteristic.properties.write || characteristic.properties.writeWithoutResponse) {
+                        printerCharacteristic = characteristic;
+                        foundCharacteristic = true;
+                        break;
+                    }
+                }
+                if (foundCharacteristic) break;
+            }
+
+            if (printerCharacteristic) {
+                const namaPerangkat = bluetoothDevice.name || 'Printer Thermal';
+                document.getElementById('combo_port').innerHTML = `<option value="connected">${namaPerangkat}</option>`;
+                document.getElementById('statusPrinter').innerText = 'Status: Terhubung (' + namaPerangkat + ')';
+                document.getElementById('statusPrinter').style.color = 'green';
+                bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected);
+                alert(`Berhasil terhubung ke printer: ${namaPerangkat}`);
+            }
+        } catch (error) {
+            console.error(error);
+            document.getElementById('statusPrinter').innerText = 'Status: Koneksi Gagal';
+            document.getElementById('statusPrinter').style.color = 'red';
+        }
+    }
+
+    function onDisconnected() {
+        document.getElementById('statusPrinter').innerText = 'Status: Terputus!';
+        document.getElementById('statusPrinter').style.color = 'red';
+        document.getElementById('combo_port').innerHTML = `<option value="none">Printer Terputus...</option>`;
+        printerCharacteristic = null;
+    }
+
+    // --- FUNGSI MENGUBAH GAMBAR KE ESC/POS RASTER (GS v 0) ---
+    async function getLogoPrintData(imgSrc, printWidthDots = 240) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                
+                // Lebar kelipatan 8
+                const width = Math.floor(printWidthDots / 8) * 8;
+                const height = Math.floor((width / img.width) * img.height);
+
+                canvas.width = width;
+                canvas.height = height;
+
+                ctx.fillStyle = "white";
+                ctx.fillRect(0, 0, width, height);
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const imgData = ctx.getImageData(0, 0, width, height).data;
+                const xL = (width / 8) % 256;
+                const xH = Math.floor((width / 8) / 256);
+                const yL = height % 256;
+                const yH = Math.floor(height / 256);
+
+                const data = [];
+                data.push(0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH); 
+
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x += 8) {
+                        let byte = 0;
+                        for (let bit = 0; bit < 8; bit++) {
+                            const idx = ((y * width) + x + bit) * 4;
+                            const r = imgData[idx];
+                            const g = imgData[idx + 1];
+                            const b = imgData[idx + 2];
+                            const alpha = imgData[idx + 3];
+
+                            const grayscale = (r * 0.299 + g * 0.587 + b * 0.114);
+                            if (grayscale < 128 && alpha > 128) {
+                                byte |= (1 << (7 - bit));
+                            }
+                        }
+                        data.push(byte);
+                    }
+                }
+                resolve(new Uint8Array(data));
+            };
+            img.onerror = () => {
+                console.warn("Logo gagal dimuat. Pastikan file logo.png ada dan jalan di localhost/HTTPS.");
+                resolve(new Uint8Array(0)); 
+            };
+            img.src = imgSrc;
+        });
+    }
+
+    // --- FUNGSI MENCETAK KE HARDWARE ---
+    async function kirimKePrinterAsli(textStruk, logoURL) {
+        if (!printerCharacteristic) return false;
+
+        try {
+            const encoder = new TextEncoder();
+            const logoBytes = await getLogoPrintData(logoURL, 240); // 240 dots untuk ukuran proporsional di 80mm
+            
+            const initCmd = new Uint8Array([0x1B, 0x40]); 
+            const alignCenterCmd = new Uint8Array([0x1B, 0x61, 0x01]); 
+            const alignLeftCmd = new Uint8Array([0x1B, 0x61, 0x00]); 
+            const lineFeedCmd = new Uint8Array([0x0A, 0x0A, 0x0A, 0x0A]); 
+            
+            const textBytes = encoder.encode(textStruk);
+            const totalLength = initCmd.length + alignCenterCmd.length + logoBytes.length + alignLeftCmd.length + textBytes.length + lineFeedCmd.length;
+            const payload = new Uint8Array(totalLength);
+            
+            let offset = 0;
+            payload.set(initCmd, offset); offset += initCmd.length;
+            payload.set(alignCenterCmd, offset); offset += alignCenterCmd.length;
+            if (logoBytes.length > 0) {
+                payload.set(logoBytes, offset); offset += logoBytes.length;
+            }
+            payload.set(alignLeftCmd, offset); offset += alignLeftCmd.length;
+            payload.set(textBytes, offset); offset += textBytes.length;
+            payload.set(lineFeedCmd, offset);
+
+            const CHUNK_SIZE = 256; 
+            for (let i = 0; i < payload.length; i += CHUNK_SIZE) {
+                const chunk = payload.slice(i, i + CHUNK_SIZE);
+                if (printerCharacteristic.properties.writeWithoutResponse) {
+                    await printerCharacteristic.writeValueWithoutResponse(chunk);
+                } else {
+                    await printerCharacteristic.writeValue(chunk);
+                }
+                await new Promise(r => setTimeout(r, 30)); 
+            }
+            return true;
+        } catch (error) {
+            console.error(error);
+            alert("Terjadi kesalahan: " + error.message);
+            return false;
+        }
+    }
+
+    function buatTokenAcak() {
+        let token = "";
+        for (let i = 0; i < 20; i++) token += Math.floor(Math.random() * 10).toString();
+        return `${token.substring(0,4)} ${token.substring(4,8)} ${token.substring(8,12)} ${token.substring(12,16)} ${token.substring(16,20)}`;
+    }
+
+    function formatRp(angka, tambahKoma = false) {
+        let hasil = parseInt(angka).toLocaleString('id-ID');
+        if (tambahKoma) hasil += ",00";
+        return hasil;
+    }
+
+    function centerText(text, width = 42) {
+        if (text.length >= width) return text;
+        const pad = Math.floor((width - text.length) / 2);
+        return " ".repeat(pad) + text;
+    }
+
+    function padLeft(text, width) {
+        return String(text).padStart(width, ' ');
+    }
+
+    async function prosesTransaksi() {
+        saveData();
+
+        const kpc = document.getElementById('entry_kpc').value;
+        const meter = document.getElementById('entry_meter').value;
+        const idpel = document.getElementById('combo_idpel').value;
+        const nama = document.getElementById('entry_nama').value;
+        const daya = document.getElementById('combo_daya').value;
+        const nominalStroom = parseInt(document.getElementById('combo_nominal').value);
+        const strTanggal = document.getElementById('entry_tanggal').value;
+
+        const adminPos = 2000;
+        const rpBayar = nominalStroom + adminPos;
+        let jmlKwh = nominalStroom === 1000000 ? "1.111,2" : (nominalStroom / 1444.7).toFixed(1).replace(".", ",");
+        const resi = `98356-21/${new Date().getFullYear()}/${Math.floor(Math.random() * 900000) + 100000}`;
+        const petugas = Math.floor(Math.random() * 900000000) + 100000000;
+        const noRef = `1098356069${petugas}99${Math.floor(Math.random() * 900000000) + 100000000}`;
+        const token = buatTokenAcak();
+
+        await cetakKePrinter(kpc, meter, idpel, nama, daya, nominalStroom, adminPos, rpBayar, jmlKwh, strTanggal, resi, petugas, noRef, token);
+    }
+
+    async function cetakKePrinter(kpc, meter, idpel, nama, daya, stroom, admin, bayar, kwh, tanggal, resi, petugas, noRef, token) {
+        const fBayar = formatRp(bayar);
+        const fStroom = formatRp(stroom, true);
+        const fAdmin = formatRp(admin);
+
+        let strukBaseTeks = 
+            centerText("PT POS INDONESIA (PERSERO)") + "\n" +
+            centerText(kpc) + "\n\n" +
+            `<span class="bold-text">` + centerText("TANDA TERIMA") + `</span>\n` +
+            `<span class="bold-text">` + centerText("TAGIHAN PLN PREPAID") + `</span>\n` +
+            "------------------------------------------\n" +
+            `Tanggal   : ${tanggal}\n` +
+            `No. Resi  : ${resi}\n` +
+            `Petugas   : ${petugas}\n` +
+            "------------------------------------------\n" +
+            centerText("STRUK PEMBELIAN LISTRIK PRABAYAR") + "\n" +
+            `NO METER       : ${meter}\n` +
+            `IDPEL          : ${idpel}\n` +
+            `NAMA           : ${nama.toUpperCase()}\n` +
+            `TARIF/DAYA     : ${daya}\n` +
+            `NO REF         : \n` +
+            `${noRef}\n` +
+            `RP BAYAR       : RP. ${padLeft(fBayar, 14)}\n` +
+            `METERAI        : RP.              0,00\n` +
+            `PPN            : RP.              0,00\n` +
+            `PBJT-TL        : RP.              0,00\n` +
+            `ANGSURAN       : RP.              0,00\n` +
+            `RP STROOM/TOKEN: RP.    ${padLeft(fStroom, 14)}\n` +
+            `JML KWH        :     ${padLeft(kwh, 14)}\n` +
+            `ADMIN POS      : RP. ${padLeft(fAdmin, 14)}\n` +
+            `<span class="bold-text">STROOM / TOKEN : ${token}</span>\n\n` +
+            centerText("POS IND") + "\n" +
+            centerText("Info Hubungi Call Center 123 Atau") + "\n" +
+            centerText("hubungi PLN Terdekat") + "\n" +
+            centerText("Download PLN Mobile") + "\n" +
+            "NPWP : 01.001.620.2-093.000 a.n PT Pos\n" +
+            "Indonesia\n" +
+            "------------------------------------------\n" +
+            centerText("Simpan resi ini sbg bukti bayar sah.") + "\n\n" +
+            centerText("Terima kasih telah memilih kami,") + "\n" +
+            centerText("Sampai jumpa di transaksi berikutnya...") + "\n\n" +
+            centerText("(Tlp) Halo Pos 1500161") + "\n";
+
+        const strukMurni = strukBaseTeks.replace(/<[^>]*>?/gm, '');
+        const logoURL = "logo.png"; // Harus ada di folder yang sama
+        
+        let modalHTML = 
+            `<div style="text-align: center; margin-bottom: 10px;">
+                <img src="${logoURL}" alt="Logo Pos" style="width: 140px; height: auto;">
+            </div>` + strukBaseTeks;
+
+        document.getElementById('strukOutput').innerHTML = modalHTML;
+        document.getElementById('modalStruk').style.display = 'flex';
+
+        if (printerCharacteristic) {
+            const btn = document.getElementById('btnCetak');
+            btn.innerText = "SEDANG MENCETAK...";
+            btn.disabled = true;
+
+            const sukses = await kirimKePrinterAsli(strukMurni, logoURL);
+            
+            btn.innerText = "CETAK STRUK IDENTIK V3";
+            btn.disabled = false;
+        }
+    }
+
+    function tutupSimulasi() {
+        document.getElementById('modalStruk').style.display = 'none';
+        setWaktuSekarang(); 
+    }
+</script>
+
+</body>
+</html>
