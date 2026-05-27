@@ -5,19 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Loket POS - Token Listrik V3 (Logo Dinamis & Footer Terpisah)</title>
     <style>
-        body { font-family: Helvetica, Arial, sans-serif; background-color: #e8e8e8; display: flex; justify-content: center; padding-top: 20px; }
+        body { font-family: 'Courier New', Courier, monospace; background-color: #e8e8e8; display: flex; justify-content: center; padding-top: 20px; }
         .container { width: 420px; background-color: #fff; padding: 10px 20px; box-sizing: border-box; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-radius: 8px; }
         h2 { text-align: center; font-size: 18px; margin-bottom: 15px; margin-top: 5px; color: #333; }
         fieldset { border: 1px solid #ccc; border-radius: 4px; padding: 10px; margin-bottom: 15px; background-color: #fafafa; }
         legend { padding: 0 5px; font-size: 14px; font-weight: bold; color: #555; }
         .flex-row { display: flex; gap: 10px; align-items: center; }
-        select, input[type="text"] { padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-family: sans-serif; font-size: 13px; }
-        .btn-scan { background-color: #008CBA; color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        select, input[type="text"] { padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-family: 'Courier New', Courier, monospace; font-size: 13px; }
+        .btn-scan { background-color: #008CBA; color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 4px; font-weight: bold; font-family: 'Courier New', Courier, monospace; }
         .btn-scan:hover { background-color: #007399; }
         .form-grid { display: grid; grid-template-columns: 130px 1fr; gap: 10px 0; align-items: center; margin-bottom: 20px; }
         .form-grid label { font-size: 14px; color: #444; font-weight: 500; }
         .form-grid input, .form-grid select { width: 220px; }
-        .btn-cetak { width: 100%; background-color: #ff7300; color: white; border: none; padding: 12px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 4px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(255, 115, 0, 0.3); }
+        .btn-cetak { width: 100%; background-color: #ff7300; color: white; border: none; padding: 12px; font-size: 16px; font-weight: bold; font-family: 'Courier New', Courier, monospace; cursor: pointer; border-radius: 4px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(255, 115, 0, 0.3); }
         .btn-cetak:hover { background-color: #e66800; }
         .btn-cetak:disabled { background-color: #ccc; cursor: not-allowed; box-shadow: none; }
         
@@ -304,9 +304,9 @@
             ctx.fillStyle = "white";
             ctx.fillRect(0, 0, width, height);
 
-            // Pengaturan Teks
+            // Pengaturan Teks diubah ke Courier New
             ctx.fillStyle = "black";
-            ctx.font = "18px 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif";
+            ctx.font = "18px 'Courier New', Courier, monospace, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji'";
             ctx.textBaseline = "middle";
 
             // 1. Gambar Teks Kiri (Halo Pos)
