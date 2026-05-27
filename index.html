@@ -261,7 +261,7 @@
         let totalHeight = 10; // Padding atas margin kertas
         
         // Logo diperkecil ukurannya (Lebar 140 pixel)
-        let logoWidth = 200; 
+        let logoWidth = 190; 
         let logoHeight = 0;
         if (logoImg) {
             logoHeight = Math.floor((logoWidth / logoImg.width) * logoImg.height);
@@ -315,7 +315,7 @@
         // ============================
         // C. GAMBAR ICON FOOTER (KIRI - KANAN)
         // ============================
-        currentY += 10; // Tambah spasi menjauh dari "Untuk informasi hubungi"
+        currentY += 0; // Tambah spasi menjauh dari "Untuk informasi hubungi"
         const margin = 30; // Posisi menjorok ke dalam (seperti di foto)
         const iconSize = 26;
         const gap = 8; // Spasi dari icon ke huruf
@@ -537,7 +537,7 @@
             // Logo juga diperkecil 2x lipat pada simulasi browser (sekarang 55px)
             `<div style="display: flex; justify-content: center; margin-bottom: 10px;"><img src="${logoURL}" alt="Logo Pos" style="width: 55px; height: auto; filter: grayscale(100%) contrast(1.5);"></div>` + 
             strukBaseTeks + 
-            `<div style="display: flex; justify-content: space-between; margin-top: 5px; font-family: 'Courier New', Courier, monospace; align-items: center; padding: 0 30px;">` +
+            `<div style="display: flex; justify-content: space-between; margin-top: -10px; font-family: 'Courier New', Courier, monospace; align-items: center; padding: 0 30px;">` +
             `<span style="display: flex; align-items: center; gap: 8px;">` +
             `<img src="phone.png" alt="📞" style="width: 22px; height: 22px;" onerror="this.outerHTML='<span style=\\'font-size: 18px;\\'>📞</span>'">` +
             `Halo Pos 1500161</span>` +
