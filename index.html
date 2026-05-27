@@ -35,12 +35,12 @@
         /* Kertas Thermal Simulasi (Diperlebar untuk 80mm) */
         .struk-thermal {
             background-color: #fdfdfc;
-            width: 420px; /* Lebih lebar dari versi 58mm sebelumnya */
+            width: 420px; 
             min-height: max-content;
             padding: 20px 20px;
             box-shadow: -2px 2px 10px rgba(0,0,0,0.15);
             font-family: 'Courier New', Courier, monospace;
-            font-size: 15px; /* Font simulasi browser dibesarkan sedikit */
+            font-size: 15px; 
             line-height: 1.25;
             color: #111;
             white-space: pre; 
@@ -233,7 +233,7 @@
         printerCharacteristic = null;
     }
 
-    async function getLogoPrintData(imgSrc, printWidthDots = 280) { // Logo dibesarkan untuk kertas 80mm
+    async function getLogoPrintData(imgSrc, printWidthDots = 280) { 
         return new Promise((resolve) => {
             const img = new Image();
             img.crossOrigin = "Anonymous";
@@ -287,7 +287,6 @@
         });
     }
 
-    // Resolusi Kertas Diperlebar menjadi 576 Dots (Kertas 80mm)
     async function getStrukImagePrintData(htmlText, printWidthDots = 576) {
         return new Promise((resolve) => {
             const canvas = document.createElement('canvas');
@@ -295,10 +294,9 @@
             
             const lines = htmlText.split('\n');
             
-            // Ukuran Font dibesarkan agar merata pada lebar 576px (80mm)
             const fontSize = 23; 
             const lineHeight = 32;
-            const height = (lines.length * lineHeight) + 20; 
+            const height = (lines.length * lineHeight) + 5; // Padding dikurangi agar nempel dengan footer
 
             canvas.width = Math.floor(printWidthDots / 8) * 8;
             canvas.height = height;
@@ -321,7 +319,6 @@
                 }
 
                 ctx.fillStyle = "black";
-                // Digeser 12 pixel dari pinggir agar tidak terpotong (margin aman)
                 ctx.fillText(cleanLine, 12, y);
                 y += lineHeight;
             }
@@ -357,13 +354,14 @@
         });
     }
 
-    async function getFooterEmojiPrintData(textLeft, textRight, printWidthDots = 576) { // 576 = 80mm
+    // FUNGSI BARU: Mencetak 2 Icon Kiri dan Kanan Satu Baris (Sejajar)
+    async function getFooterIconsPrintData(textPhone, textIG, printWidthDots = 576) {
         return new Promise((resolve) => {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
             
             const width = Math.floor(printWidthDots / 8) * 8;
-            const height = 60; // Tinggi dinaikkan agar proporsional di kertas besar
+            const height = 50; // Tinggi blok footer
 
             canvas.width = width;
             canvas.height = height;
@@ -372,35 +370,60 @@
             ctx.fillRect(0, 0, width, height);
 
             ctx.fillStyle = "black";
-            // Ukuran font untuk footer dibesarkan jadi 22px
-            ctx.font = "22px 'Courier New', Courier, monospace, 'Segoe UI Emoji'";
+            ctx.font = "23px 'Courier New', Courier, monospace";
             ctx.textBaseline = "middle";
 
-            ctx.textAlign = "left";
-            ctx.fillText(textLeft, 12, height / 2); // margin kiri 12px
+            const margin = 30; // Jarak menjorok ke dalam agar terlihat simetris seperti gambar
+            const iconSize = 26;
+            const gap = 8; // Jarak icon dengan teksnya
 
-            const img = new Image();
-            img.crossOrigin = "Anonymous";
-            
-            img.onload = () => {
-                ctx.textAlign = "right";
-                ctx.fillText(textRight, width - 12, height / 2); // margin kanan 12px
-                
-                const textWidth = ctx.measureText(textRight).width;
-                const iconSize = 26; // icon lebih besar
-                const iconX = width - 12 - textWidth - 8 - iconSize; 
+            let phoneDone = false;
+            let igDone = false;
+
+            function checkDone() {
+                if (phoneDone && igDone) {
+                    selesaikanCanvas();
+                }
+            }
+
+            // Bagian Kiri: Telepon
+            const imgPhone = new Image();
+            imgPhone.crossOrigin = "Anonymous";
+            imgPhone.onload = () => {
+                ctx.textAlign = "left";
+                const iconX = margin;
                 const iconY = (height / 2) - (iconSize / 2);
-                
-                ctx.drawImage(img, iconX, iconY, iconSize, iconSize);
-                selesaikanCanvas();
+                ctx.drawImage(imgPhone, iconX, iconY, iconSize, iconSize);
+                ctx.fillText(textPhone, margin + iconSize + gap, height / 2);
+                phoneDone = true; checkDone();
             };
+            imgPhone.onerror = () => {
+                // Fallback jika tidak ada gambar phone.png
+                ctx.textAlign = "left";
+                ctx.fillText("📞 " + textPhone, margin, height / 2);
+                phoneDone = true; checkDone();
+            };
+            imgPhone.src = "phone.png";
 
-            img.onerror = () => {
+            // Bagian Kanan: Instagram
+            const imgIG = new Image();
+            imgIG.crossOrigin = "Anonymous";
+            imgIG.onload = () => {
                 ctx.textAlign = "right";
-                ctx.fillText("📷 " + textRight, width - 12, height / 2);
-                selesaikanCanvas();
+                ctx.fillText(textIG, width - margin, height / 2);
+                const textWidth = ctx.measureText(textIG).width;
+                const iconX = width - margin - textWidth - gap - iconSize;
+                const iconY = (height / 2) - (iconSize / 2);
+                ctx.drawImage(imgIG, iconX, iconY, iconSize, iconSize);
+                igDone = true; checkDone();
             };
-            img.src = "instagram.png"; 
+            imgIG.onerror = () => {
+                // Fallback jika tidak ada gambar instagram.png
+                ctx.textAlign = "right";
+                ctx.fillText("IG:" + textIG, width - margin, height / 2);
+                igDone = true; checkDone();
+            };
+            imgIG.src = "instagram.png";
 
             function selesaikanCanvas() {
                 const imgData = ctx.getImageData(0, 0, width, height).data;
@@ -439,10 +462,9 @@
         if (!printerCharacteristic) return false;
 
         try {
-            // Lebar data cetak disesuaikan ke standar 80mm
             const logoBytes = await getLogoPrintData(logoURL, 280); 
             const textBytes = await getStrukImagePrintData(strukBaseTeks, 576); 
-            const footerBytes = await getFooterEmojiPrintData("📞 Halo Pos 1500161", "@posindonesia.ig", 576);
+            const footerBytes = await getFooterIconsPrintData("Halo Pos 1500161", "@posindonesia.ig", 576);
             
             const initCmd = new Uint8Array([0x1B, 0x40]); 
             const alignCenterCmd = new Uint8Array([0x1B, 0x61, 0x01]); 
@@ -475,7 +497,6 @@
                 } else {
                     await printerCharacteristic.writeValue(chunk);
                 }
-                // Delay dijaga di 40ms agar data yang sangat besar tidak overload di buffer printer
                 await new Promise(r => setTimeout(r, 40)); 
             }
             return true;
@@ -587,10 +608,12 @@
             `<div class="struk-thermal">` +
             `<div style="display: flex; justify-content: center; margin-bottom: 10px;"><img src="${logoURL}" alt="Logo Pos" style="width: 110px; height: auto; filter: grayscale(100%) contrast(1.5);"></div>` + 
             strukBaseTeks + 
-            `<div style="display: flex; justify-content: space-between; margin-top: 10px; font-family: 'Courier New', Courier, monospace; align-items: center; padding: 0 5px;">` +
-            `<span>📞 Halo Pos 1500161</span>` +
-            `<span style="display: flex; align-items: center; gap: 4px;">` +
-            `<img src="instagram.png" alt="IG" style="width: 18px; height: 18px;">` +
+            `<div style="display: flex; justify-content: space-between; margin-top: 5px; font-family: 'Courier New', Courier, monospace; align-items: center; padding: 0 30px;">` +
+            `<span style="display: flex; align-items: center; gap: 8px;">` +
+            `<img src="phone.png" alt="📞" style="width: 22px; height: 22px;" onerror="this.outerHTML='<span style=\\'font-size: 18px;\\'>📞</span>'">` +
+            `Halo Pos 1500161</span>` +
+            `<span style="display: flex; align-items: center; gap: 8px;">` +
+            `<img src="instagram.png" alt="IG" style="width: 22px; height: 22px;">` +
             `@posindonesia.ig</span></div>` +
             `</div>`;
 
