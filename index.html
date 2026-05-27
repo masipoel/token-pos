@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loket POS - Token Listrik V3 (Kertas 80mm / 7.7cm)</title>
+    <title>Loket POS - Token Listrik V3 (Fix Urutan Cetak & Resize Logo)</title>
     <style>
         body { font-family: 'Courier New', Courier, monospace; background-color: #e8e8e8; display: flex; justify-content: center; padding-top: 20px; }
         .container { width: 420px; background-color: #fff; padding: 10px 20px; box-sizing: border-box; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-radius: 8px; }
@@ -233,106 +233,138 @@
         printerCharacteristic = null;
     }
 
-    async function getLogoPrintData(imgSrc, printWidthDots = 280) { 
-        return new Promise((resolve) => {
+    // =========================================================================
+    // FUNGSI BARU: MASTER IMAGE RENDERER (Menyatukan Logo + Teks + Footer)
+    // Tujuannya memotong gambar menjadi blok 200px agar memori printer tidak error
+    // dan urutan cetakan dijamin 100% sempurna dari atas ke bawah.
+    // =========================================================================
+    async function getFullReceiptImagePrintData(htmlText, logoSrc, textPhone, textIG, printWidthDots = 576) {
+        
+        // Helper Loading Gambar
+        const loadImage = (src) => new Promise((resolve) => {
             const img = new Image();
             img.crossOrigin = "Anonymous";
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                
-                const width = Math.floor(printWidthDots / 8) * 8;
-                const height = Math.floor((width / img.width) * img.height);
-
-                canvas.width = width;
-                canvas.height = height;
-
-                ctx.fillStyle = "white";
-                ctx.fillRect(0, 0, width, height);
-                ctx.drawImage(img, 0, 0, width, height);
-
-                const imgData = ctx.getImageData(0, 0, width, height).data;
-                const xL = (width / 8) % 256;
-                const xH = Math.floor((width / 8) / 256);
-                const yL = height % 256;
-                const yH = Math.floor(height / 256);
-
-                const data = [];
-                data.push(0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH); 
-
-                for (let y = 0; y < height; y++) {
-                    for (let x = 0; x < width; x += 8) {
-                        let byte = 0;
-                        for (let bit = 0; bit < 8; bit++) {
-                            const idx = ((y * width) + x + bit) * 4;
-                            const r = imgData[idx];
-                            const g = imgData[idx + 1];
-                            const b = imgData[idx + 2];
-                            const alpha = imgData[idx + 3];
-
-                            const grayscale = (r * 0.299 + g * 0.587 + b * 0.114);
-                            if (grayscale < 128 && alpha > 128) {
-                                byte |= (1 << (7 - bit));
-                            }
-                        }
-                        data.push(byte);
-                    }
-                }
-                resolve(new Uint8Array(data));
-            };
-            img.onerror = () => {
-                resolve(new Uint8Array(0)); 
-            };
-            img.src = imgSrc;
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null); // Lewati jika gambar tidak ditemukan
+            img.src = src;
         });
-    }
 
-    async function getStrukImagePrintData(htmlText, printWidthDots = 576) {
-        return new Promise((resolve) => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            
-            const lines = htmlText.split('\n');
-            
-            const fontSize = 23; 
-            const lineHeight = 32;
-            const height = (lines.length * lineHeight) + 5; // Padding dikurangi agar nempel dengan footer
+        const logoImg = await loadImage(logoSrc);
+        const phoneImg = await loadImage("phone.png");
+        const igImg = await loadImage("instagram.png");
 
-            canvas.width = Math.floor(printWidthDots / 8) * 8;
-            canvas.height = height;
+        const lines = htmlText.split('\n');
+        const fontSize = 23; 
+        const lineHeight = 32;
 
-            ctx.fillStyle = "white";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // 1. Kalkulasi Tinggi Total Kertas
+        let totalHeight = 10; // Padding atas margin kertas
+        
+        // Logo diperkecil ukurannya (Lebar 140 pixel)
+        let logoWidth = 140; 
+        let logoHeight = 0;
+        if (logoImg) {
+            logoHeight = Math.floor((logoWidth / logoImg.width) * logoImg.height);
+            totalHeight += logoHeight + 20; 
+        }
+        
+        totalHeight += (lines.length * lineHeight); // Tinggi Blok Teks
+        totalHeight += 10; // Jarak/Margin bawah dari teks terakhir ("Untuk informasi hubungi")
+        totalHeight += 50; // Jarak/Tinggi area Icon Footer (Phone & IG)
 
-            ctx.textBaseline = "top";
-            ctx.textAlign = "left";
+        // Buat Master Canvas Virtual
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        canvas.width = Math.floor(printWidthDots / 8) * 8;
+        canvas.height = totalHeight;
 
-            let y = 10; 
-            for (let line of lines) {
-                let isBold = line.includes('<span class="bold-text">');
-                let cleanLine = line.replace(/<[^>]*>?/gm, ''); 
+        // Beri Background Putih Penuh
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                if (isBold) {
-                    ctx.font = `bold ${fontSize}px 'Courier New', Courier, monospace`;
-                } else {
-                    ctx.font = `${fontSize}px 'Courier New', Courier, monospace`;
-                }
+        let currentY = 10;
 
-                ctx.fillStyle = "black";
-                ctx.fillText(cleanLine, 12, y);
-                y += lineHeight;
+        // ============================
+        // A. GAMBAR LOGO HEADER (TENGAH)
+        // ============================
+        if (logoImg) {
+            const logoX = (canvas.width - logoWidth) / 2;
+            ctx.drawImage(logoImg, logoX, currentY, logoWidth, logoHeight);
+            currentY += logoHeight + 20;
+        }
+
+        // ============================
+        // B. GAMBAR TEKS STRUK
+        // ============================
+        ctx.textBaseline = "top";
+        ctx.textAlign = "left";
+        for (let line of lines) {
+            let isBold = line.includes('<span class="bold-text">');
+            let cleanLine = line.replace(/<[^>]*>?/gm, ''); 
+
+            if (isBold) {
+                ctx.font = `bold ${fontSize}px 'Courier New', Courier, monospace`;
+            } else {
+                ctx.font = `${fontSize}px 'Courier New', Courier, monospace`;
             }
+            ctx.fillStyle = "black";
+            ctx.fillText(cleanLine, 12, currentY); 
+            currentY += lineHeight;
+        }
 
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        // ============================
+        // C. GAMBAR ICON FOOTER (KIRI - KANAN)
+        // ============================
+        currentY += 10; // Tambah spasi menjauh dari "Untuk informasi hubungi"
+        const margin = 30; // Posisi menjorok ke dalam (seperti di foto)
+        const iconSize = 26;
+        const gap = 8; // Spasi dari icon ke huruf
+        
+        ctx.textBaseline = "middle";
+        const footerMidY = currentY + (iconSize / 2);
+
+        // Kiri: Telepon
+        ctx.textAlign = "left";
+        if (phoneImg) {
+            ctx.drawImage(phoneImg, margin, currentY, iconSize, iconSize);
+            ctx.font = `23px 'Courier New', Courier, monospace`;
+            ctx.fillText(textPhone, margin + iconSize + gap, footerMidY);
+        } else {
+            ctx.font = `23px 'Courier New', Courier, monospace`;
+            ctx.fillText("📞 " + textPhone, margin, footerMidY);
+        }
+
+        // Kanan: Instagram
+        ctx.textAlign = "right";
+        if (igImg) {
+            const textWidth = ctx.measureText(textIG).width;
+            const iconX = canvas.width - margin - textWidth - gap - iconSize;
+            ctx.drawImage(igImg, iconX, currentY, iconSize, iconSize);
+            ctx.fillText(textIG, canvas.width - margin, footerMidY);
+        } else {
+            ctx.fillText("IG:" + textIG, canvas.width - margin, footerMidY);
+        }
+
+        // ============================
+        // D. PROSES PEMOTONGAN (SLICING) UNTUK PRINTER
+        // (Tiap potongan max tinggi 200px agar printer tidak error di tengah jalan)
+        // ============================
+        const MAX_SLICE_HEIGHT = 200; 
+        const slices = [];
+        
+        for (let sliceY = 0; sliceY < canvas.height; sliceY += MAX_SLICE_HEIGHT) {
+            const sliceHeight = Math.min(MAX_SLICE_HEIGHT, canvas.height - sliceY);
+            const imgData = ctx.getImageData(0, sliceY, canvas.width, sliceHeight).data;
+            
             const xL = (canvas.width / 8) % 256;
             const xH = Math.floor((canvas.width / 8) / 256);
-            const yL = canvas.height % 256;
-            const yH = Math.floor(canvas.height / 256);
+            const yL = sliceHeight % 256;
+            const yH = Math.floor(sliceHeight / 256);
 
             const data = [];
             data.push(0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH); 
 
-            for (let y = 0; y < canvas.height; y++) {
+            for (let y = 0; y < sliceHeight; y++) {
                 for (let x = 0; x < canvas.width; x += 8) {
                     let byte = 0;
                     for (let bit = 0; bit < 8; bit++) {
@@ -350,143 +382,39 @@
                     data.push(byte);
                 }
             }
-            resolve(new Uint8Array(data));
-        });
+            slices.push(new Uint8Array(data));
+        }
+        
+        return slices;
     }
 
-    // FUNGSI BARU: Mencetak 2 Icon Kiri dan Kanan Satu Baris (Sejajar)
-    async function getFooterIconsPrintData(textPhone, textIG, printWidthDots = 576) {
-        return new Promise((resolve) => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            
-            const width = Math.floor(printWidthDots / 8) * 8;
-            const height = 50; // Tinggi blok footer
-
-            canvas.width = width;
-            canvas.height = height;
-
-            ctx.fillStyle = "white";
-            ctx.fillRect(0, 0, width, height);
-
-            ctx.fillStyle = "black";
-            ctx.font = "23px 'Courier New', Courier, monospace";
-            ctx.textBaseline = "middle";
-
-            const margin = 30; // Jarak menjorok ke dalam agar terlihat simetris seperti gambar
-            const iconSize = 26;
-            const gap = 8; // Jarak icon dengan teksnya
-
-            let phoneDone = false;
-            let igDone = false;
-
-            function checkDone() {
-                if (phoneDone && igDone) {
-                    selesaikanCanvas();
-                }
-            }
-
-            // Bagian Kiri: Telepon
-            const imgPhone = new Image();
-            imgPhone.crossOrigin = "Anonymous";
-            imgPhone.onload = () => {
-                ctx.textAlign = "left";
-                const iconX = margin;
-                const iconY = (height / 2) - (iconSize / 2);
-                ctx.drawImage(imgPhone, iconX, iconY, iconSize, iconSize);
-                ctx.fillText(textPhone, margin + iconSize + gap, height / 2);
-                phoneDone = true; checkDone();
-            };
-            imgPhone.onerror = () => {
-                // Fallback jika tidak ada gambar phone.png
-                ctx.textAlign = "left";
-                ctx.fillText("📞 " + textPhone, margin, height / 2);
-                phoneDone = true; checkDone();
-            };
-            imgPhone.src = "phone.png";
-
-            // Bagian Kanan: Instagram
-            const imgIG = new Image();
-            imgIG.crossOrigin = "Anonymous";
-            imgIG.onload = () => {
-                ctx.textAlign = "right";
-                ctx.fillText(textIG, width - margin, height / 2);
-                const textWidth = ctx.measureText(textIG).width;
-                const iconX = width - margin - textWidth - gap - iconSize;
-                const iconY = (height / 2) - (iconSize / 2);
-                ctx.drawImage(imgIG, iconX, iconY, iconSize, iconSize);
-                igDone = true; checkDone();
-            };
-            imgIG.onerror = () => {
-                // Fallback jika tidak ada gambar instagram.png
-                ctx.textAlign = "right";
-                ctx.fillText("IG:" + textIG, width - margin, height / 2);
-                igDone = true; checkDone();
-            };
-            imgIG.src = "instagram.png";
-
-            function selesaikanCanvas() {
-                const imgData = ctx.getImageData(0, 0, width, height).data;
-                const xL = (width / 8) % 256;
-                const xH = Math.floor((width / 8) / 256);
-                const yL = height % 256;
-                const yH = Math.floor(height / 256);
-
-                const data = [];
-                data.push(0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH); 
-
-                for (let y = 0; y < height; y++) {
-                    for (let x = 0; x < width; x += 8) {
-                        let byte = 0;
-                        for (let bit = 0; bit < 8; bit++) {
-                            const idx = ((y * width) + x + bit) * 4;
-                            const r = imgData[idx];
-                            const g = imgData[idx + 1];
-                            const b = imgData[idx + 2];
-                            const alpha = imgData[idx + 3];
-
-                            const grayscale = (r * 0.299 + g * 0.587 + b * 0.114);
-                            if (grayscale < 128 && alpha > 128) {
-                                byte |= (1 << (7 - bit));
-                            }
-                        }
-                        data.push(byte);
-                    }
-                }
-                resolve(new Uint8Array(data));
-            }
-        });
-    }
 
     async function kirimKePrinterAsli(strukBaseTeks, logoURL) {
         if (!printerCharacteristic) return false;
 
         try {
-            const logoBytes = await getLogoPrintData(logoURL, 280); 
-            const textBytes = await getStrukImagePrintData(strukBaseTeks, 576); 
-            const footerBytes = await getFooterIconsPrintData("Halo Pos 1500161", "@posindonesia.ig", 576);
+            // Ambil semua tumpukan array (chunks) gambar struk dari fungsi Master
+            const imageChunks = await getFullReceiptImagePrintData(strukBaseTeks, logoURL, "Halo Pos 1500161", "@posindonesia.ig", 576);
             
             const initCmd = new Uint8Array([0x1B, 0x40]); 
-            const alignCenterCmd = new Uint8Array([0x1B, 0x61, 0x01]); 
             const alignLeftCmd = new Uint8Array([0x1B, 0x61, 0x00]); 
-            const lineFeedCmd = new Uint8Array([0x0A, 0x0A, 0x0A, 0x0A]); 
+            const lineFeedCmd = new Uint8Array([0x0A, 0x0A, 0x0A, 0x0A, 0x0A]); 
             
-            const totalLength = initCmd.length + alignCenterCmd.length + logoBytes.length + alignLeftCmd.length + textBytes.length + footerBytes.length + lineFeedCmd.length;
+            let totalLength = initCmd.length + alignLeftCmd.length;
+            for (const chunk of imageChunks) totalLength += chunk.length;
+            totalLength += lineFeedCmd.length;
+            
             const payload = new Uint8Array(totalLength);
             
             let offset = 0;
-            
             payload.set(initCmd, offset); offset += initCmd.length;
-            payload.set(alignCenterCmd, offset); offset += alignCenterCmd.length;
+            payload.set(alignLeftCmd, offset); offset += alignLeftCmd.length;
             
-            if (logoBytes.length > 0) {
-                payload.set(logoBytes, offset); offset += logoBytes.length;
+            // Masukkan gambar lapis demi lapis ke memori buffer secara berurutan
+            for (const chunk of imageChunks) {
+                payload.set(chunk, offset); offset += chunk.length;
             }
             
-            payload.set(alignLeftCmd, offset); offset += alignLeftCmd.length;
-            payload.set(textBytes, offset); offset += textBytes.length;
-            
-            payload.set(footerBytes, offset); offset += footerBytes.length;
             payload.set(lineFeedCmd, offset);
 
             const CHUNK_SIZE = 256; 
@@ -606,7 +534,8 @@
         
         let modalHTML = 
             `<div class="struk-thermal">` +
-            `<div style="display: flex; justify-content: center; margin-bottom: 10px;"><img src="${logoURL}" alt="Logo Pos" style="width: 110px; height: auto; filter: grayscale(100%) contrast(1.5);"></div>` + 
+            // Logo juga diperkecil 2x lipat pada simulasi browser (sekarang 55px)
+            `<div style="display: flex; justify-content: center; margin-bottom: 10px;"><img src="${logoURL}" alt="Logo Pos" style="width: 55px; height: auto; filter: grayscale(100%) contrast(1.5);"></div>` + 
             strukBaseTeks + 
             `<div style="display: flex; justify-content: space-between; margin-top: 5px; font-family: 'Courier New', Courier, monospace; align-items: center; padding: 0 30px;">` +
             `<span style="display: flex; align-items: center; gap: 8px;">` +
