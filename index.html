@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loket POS - Token Listrik V3 (Logo Dinamis & Footer Terpisah)</title>
+    <title>Loket POS - Token Listrik V3 (Courier New Image Print)</title>
     <style>
         body { font-family: 'Courier New', Courier, monospace; background-color: #e8e8e8; display: flex; justify-content: center; padding-top: 20px; }
         .container { width: 420px; background-color: #fff; padding: 10px 20px; box-sizing: border-box; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-radius: 8px; }
@@ -35,7 +35,7 @@
         /* Kertas Thermal Simulasi */
         .struk-thermal {
             background-color: #fdfdfc;
-            width: 340px; /* Menyesuaikan ukuran kertas 80mm */
+            width: 340px;
             min-height: max-content;
             padding: 20px 15px;
             box-shadow: -2px 2px 10px rgba(0,0,0,0.15);
@@ -43,14 +43,13 @@
             font-size: 13px;
             line-height: 1.2;
             color: #111;
-            white-space: pre; /* Mempertahankan spasi dan enter */
-            border-top: 2px dashed #ccc; /* Efek potongan kertas atas */
-            border-bottom: 2px dashed #ccc; /* Efek potongan kertas bawah */
+            white-space: pre; 
+            border-top: 2px dashed #ccc; 
+            border-bottom: 2px dashed #ccc; 
             position: relative;
             margin-bottom: 20px;
         }
         .bold-text { font-weight: 900; }
-        
     </style>
 </head>
 <body>
@@ -282,10 +281,83 @@
                 resolve(new Uint8Array(data));
             };
             img.onerror = () => {
-                console.warn("Logo gagal dimuat. Pastikan file logo.png ada.");
                 resolve(new Uint8Array(0)); 
             };
             img.src = imgSrc;
+        });
+    }
+
+    // FUNGSI BARU: Mengubah seluruh teks struk menjadi GAMBAR berbasis font Courier New
+    async function getStrukImagePrintData(htmlText, printWidthDots = 384) {
+        return new Promise((resolve) => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            
+            const lines = htmlText.split('\n');
+            const fontSize = 15; // Ukuran optimal agar muat 42 karakter pada lebar 384px
+            const lineHeight = 20;
+            const height = (lines.length * lineHeight) + 20; // Tambah padding bawah 20px
+
+            canvas.width = Math.floor(printWidthDots / 8) * 8;
+            canvas.height = height;
+
+            // Background Putih
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Pengaturan Teks
+            ctx.textBaseline = "top";
+            ctx.textAlign = "left";
+
+            let y = 10; // Padding atas 10px
+            for (let line of lines) {
+                // Deteksi jika baris tersebut memiliki perintah huruf tebal dari tag span HTML
+                let isBold = line.includes('<span class="bold-text">');
+                
+                // Hapus semua tag HTML untuk dicetak ke kanvas
+                let cleanLine = line.replace(/<[^>]*>?/gm, ''); 
+
+                // Terapkan Font Courier New
+                if (isBold) {
+                    ctx.font = `bold ${fontSize}px 'Courier New', Courier, monospace`;
+                } else {
+                    ctx.font = `${fontSize}px 'Courier New', Courier, monospace`;
+                }
+
+                ctx.fillStyle = "black";
+                ctx.fillText(cleanLine, 0, y);
+                y += lineHeight;
+            }
+
+            // Eksekusi Gambar ke ByteArray ESC/POS
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            const xL = (canvas.width / 8) % 256;
+            const xH = Math.floor((canvas.width / 8) / 256);
+            const yL = canvas.height % 256;
+            const yH = Math.floor(canvas.height / 256);
+
+            const data = [];
+            data.push(0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH); 
+
+            for (let y = 0; y < canvas.height; y++) {
+                for (let x = 0; x < canvas.width; x += 8) {
+                    let byte = 0;
+                    for (let bit = 0; bit < 8; bit++) {
+                        const idx = ((y * canvas.width) + x + bit) * 4;
+                        const r = imgData[idx];
+                        const g = imgData[idx + 1];
+                        const b = imgData[idx + 2];
+                        const alpha = imgData[idx + 3];
+
+                        const grayscale = (r * 0.299 + g * 0.587 + b * 0.114);
+                        if (grayscale < 128 && alpha > 128) {
+                            byte |= (1 << (7 - bit));
+                        }
+                    }
+                    data.push(byte);
+                }
+            }
+            resolve(new Uint8Array(data));
         });
     }
 
@@ -300,55 +372,39 @@
             canvas.width = width;
             canvas.height = height;
 
-            // Beri background putih
             ctx.fillStyle = "white";
             ctx.fillRect(0, 0, width, height);
 
-            // Pengaturan Teks diubah ke Courier New
             ctx.fillStyle = "black";
-            ctx.font = "18px 'Courier New', Courier, monospace, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji'";
+            ctx.font = "18px 'Courier New', Courier, monospace, 'Segoe UI Emoji'";
             ctx.textBaseline = "middle";
 
-            // 1. Gambar Teks Kiri (Halo Pos)
             ctx.textAlign = "left";
             ctx.fillText(textLeft, 5, height / 2);
 
-            // 2. Load Logo Instagram untuk Kanan
             const img = new Image();
             img.crossOrigin = "Anonymous";
             
             img.onload = () => {
-                // Gambar teks akun IG
                 ctx.textAlign = "right";
                 ctx.fillText(textRight, width - 5, height / 2);
                 
-                // Ukur lebar teks agar icon IG pas berada di sebelah kirinya
                 const textWidth = ctx.measureText(textRight).width;
-                
-                // Atur ukuran dan posisi icon (ukuran 20x20 pixel)
                 const iconSize = 20;
-                const iconX = width - 5 - textWidth - 5 - iconSize; // 5px jarak dari teks
+                const iconX = width - 5 - textWidth - 5 - iconSize; 
                 const iconY = (height / 2) - (iconSize / 2);
                 
-                // Gambar Icon IG ke canvas
                 ctx.drawImage(img, iconX, iconY, iconSize, iconSize);
-
-                // Eksekusi konversi ke byte
                 selesaikanCanvas();
             };
 
             img.onerror = () => {
-                // Jika gambar gagal dimuat, fallback cetak teksnya saja + emoji kamera
-                console.warn("Logo IG gagal dimuat ke canvas printer.");
                 ctx.textAlign = "right";
                 ctx.fillText("📷 " + textRight, width - 5, height / 2);
                 selesaikanCanvas();
             };
-
-            // Panggil gambar instagram (Case Sensitive!)
             img.src = "instagram.png"; 
 
-            // Fungsi internal untuk mengubah canvas ke byte array printer
             function selesaikanCanvas() {
                 const imgData = ctx.getImageData(0, 0, width, height).data;
                 const xL = (width / 8) % 256;
@@ -369,7 +425,6 @@
                             const b = imgData[idx + 2];
                             const alpha = imgData[idx + 3];
 
-                            // Algoritma grayscale to monochrome (hitam putih thermal)
                             const grayscale = (r * 0.299 + g * 0.587 + b * 0.114);
                             if (grayscale < 128 && alpha > 128) {
                                 byte |= (1 << (7 - bit));
@@ -383,14 +438,13 @@
         });
     }
 
-    async function kirimKePrinterAsli(textStruk, logoURL) {
+    async function kirimKePrinterAsli(strukBaseTeks, logoURL) {
         if (!printerCharacteristic) return false;
 
         try {
-            const encoder = new TextEncoder();
-            
             const logoBytes = await getLogoPrintData(logoURL, 192); 
-            // Panggilan untuk footer IG disesuaikan (tanpa emoji kamera)
+            // PERUBAHAN: Teks struk kini diproses sebagai GAMBAR Courier New
+            const textBytes = await getStrukImagePrintData(strukBaseTeks, 384); 
             const footerBytes = await getFooterEmojiPrintData("📞 Halo Pos 1500161", "@posindonesia.ig", 368);
             
             const initCmd = new Uint8Array([0x1B, 0x40]); 
@@ -398,9 +452,7 @@
             const alignLeftCmd = new Uint8Array([0x1B, 0x61, 0x00]); 
             const lineFeedCmd = new Uint8Array([0x0A, 0x0A, 0x0A, 0x0A]); 
             
-            const textBytes = encoder.encode(textStruk);
-            
-            const totalLength = initCmd.length + alignCenterCmd.length + logoBytes.length + alignLeftCmd.length + textBytes.length + alignLeftCmd.length + footerBytes.length + lineFeedCmd.length;
+            const totalLength = initCmd.length + alignCenterCmd.length + logoBytes.length + alignLeftCmd.length + textBytes.length + footerBytes.length + lineFeedCmd.length;
             const payload = new Uint8Array(totalLength);
             
             let offset = 0;
@@ -413,11 +465,10 @@
             }
             
             payload.set(alignLeftCmd, offset); offset += alignLeftCmd.length;
+            // Kirim gambar struk Courier New
             payload.set(textBytes, offset); offset += textBytes.length;
             
-            payload.set(alignLeftCmd, offset); offset += alignLeftCmd.length;
             payload.set(footerBytes, offset); offset += footerBytes.length;
-            
             payload.set(lineFeedCmd, offset);
 
             const CHUNK_SIZE = 256; 
@@ -428,7 +479,8 @@
                 } else {
                     await printerCharacteristic.writeValue(chunk);
                 }
-                await new Promise(r => setTimeout(r, 30)); 
+                // Delay ditingkatkan menjadi 40ms karena beban data pengiriman gambar cukup besar
+                await new Promise(r => setTimeout(r, 40)); 
             }
             return true;
         } catch (error) {
@@ -487,6 +539,7 @@
         const fStroom = formatRp(stroom, true);
         const fAdmin = formatRp(admin);
 
+        // Template string akan digunakan secara langsung untuk dikonversi menjadi gambar
         let strukBaseTeks = 
             centerText("PT POS INDONESIA (PERSERO)") + "\n" +
             centerText(kpc) + "\n\n" +
@@ -533,14 +586,8 @@
             centerText("Sampai jumpa di transaksi berikutnya...") + "\n\n" +
             centerText("Untuk informasi hubungi") + "\n"; 
 
-        // Proses untuk printer fisik
-        let strukMurni = strukBaseTeks.replace(/<span class="bold-text">/g, '\x1B\x45\x01'); 
-        strukMurni = strukMurni.replace(/<\/span>/g, '\x1B\x45\x00'); 
-        strukMurni = strukMurni.replace(/<[^>]*>?/gm, ''); 
-
         const logoURL = "logo.png"; 
         
-        // TAMPILAN KERTAS THERMAL UNTUK BROWSER (Dengan gambar IG dari file instagram.png)
         let modalHTML = 
             `<div class="struk-thermal">` +
             `<div style="display: flex; justify-content: center; margin-bottom: 10px;"><img src="${logoURL}" alt="Logo Pos" style="width: 90px; height: auto; filter: grayscale(100%) contrast(1.5);"></div>` + 
@@ -560,7 +607,8 @@
             btn.innerText = "SEDANG MENCETAK...";
             btn.disabled = true;
 
-            const sukses = await kirimKePrinterAsli(strukMurni, logoURL);
+            // Langsung memanggil fungsi dengan teks HTML yang memiliki penanda span Bold
+            const sukses = await kirimKePrinterAsli(strukBaseTeks, logoURL);
             
             btn.innerText = "CETAK STRUK IDENTIK V3";
             btn.disabled = false;
