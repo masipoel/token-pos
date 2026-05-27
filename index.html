@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loket POS - Token Listrik V3 (Courier New Image Print)</title>
+    <title>Loket POS - Token Listrik V3 (Kertas 80mm / 7.7cm)</title>
     <style>
         body { font-family: 'Courier New', Courier, monospace; background-color: #e8e8e8; display: flex; justify-content: center; padding-top: 20px; }
         .container { width: 420px; background-color: #fff; padding: 10px 20px; box-sizing: border-box; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-radius: 8px; }
@@ -23,7 +23,7 @@
         
         /* Modal Style */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background-color: #d1d5db; padding: 15px; border-radius: 8px; width: 440px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
+        .modal-content { background-color: #d1d5db; padding: 15px; border-radius: 8px; width: 480px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #bbb; }
         .modal-header h3 { margin: 0; font-size: 16px; color: #333; }
         .close-btn { background: #ff4c4c; color: white; border: none; font-size: 16px; font-weight: bold; cursor: pointer; width: 28px; height: 28px; border-radius: 50%; display: flex; justify-content: center; align-items: center; }
@@ -32,16 +32,16 @@
         /* Area Struk / Meja Kasir */
         .struk-area { width: 100%; height: 500px; background-color: #d1d5db; display: flex; justify-content: center; overflow-y: auto; padding: 20px 0; box-sizing: border-box; }
         
-        /* Kertas Thermal Simulasi */
+        /* Kertas Thermal Simulasi (Diperlebar untuk 80mm) */
         .struk-thermal {
             background-color: #fdfdfc;
-            width: 340px;
+            width: 420px; /* Lebih lebar dari versi 58mm sebelumnya */
             min-height: max-content;
-            padding: 20px 15px;
+            padding: 20px 20px;
             box-shadow: -2px 2px 10px rgba(0,0,0,0.15);
             font-family: 'Courier New', Courier, monospace;
-            font-size: 13px;
-            line-height: 1.2;
+            font-size: 15px; /* Font simulasi browser dibesarkan sedikit */
+            line-height: 1.25;
             color: #111;
             white-space: pre; 
             border-top: 2px dashed #ccc; 
@@ -101,7 +101,7 @@
         <input type="text" id="entry_tanggal">
     </div>
 
-    <button class="btn-cetak" id="btnCetak" onclick="prosesTransaksi()">CETAK STRUK IDENTIK V3</button>
+    <button class="btn-cetak" id="btnCetak" onclick="prosesTransaksi()">CETAK STRUK IDENTIK (80MM)</button>
 </div>
 
 <div class="modal-overlay" id="modalStruk">
@@ -233,7 +233,7 @@
         printerCharacteristic = null;
     }
 
-    async function getLogoPrintData(imgSrc, printWidthDots = 240) {
+    async function getLogoPrintData(imgSrc, printWidthDots = 280) { // Logo dibesarkan untuk kertas 80mm
         return new Promise((resolve) => {
             const img = new Image();
             img.crossOrigin = "Anonymous";
@@ -287,37 +287,33 @@
         });
     }
 
-    // FUNGSI BARU: Mengubah seluruh teks struk menjadi GAMBAR berbasis font Courier New
-    async function getStrukImagePrintData(htmlText, printWidthDots = 384) {
+    // Resolusi Kertas Diperlebar menjadi 576 Dots (Kertas 80mm)
+    async function getStrukImagePrintData(htmlText, printWidthDots = 576) {
         return new Promise((resolve) => {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
             
             const lines = htmlText.split('\n');
-            const fontSize = 15; // Ukuran optimal agar muat 42 karakter pada lebar 384px
-            const lineHeight = 20;
-            const height = (lines.length * lineHeight) + 20; // Tambah padding bawah 20px
+            
+            // Ukuran Font dibesarkan agar merata pada lebar 576px (80mm)
+            const fontSize = 23; 
+            const lineHeight = 32;
+            const height = (lines.length * lineHeight) + 20; 
 
             canvas.width = Math.floor(printWidthDots / 8) * 8;
             canvas.height = height;
 
-            // Background Putih
             ctx.fillStyle = "white";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Pengaturan Teks
             ctx.textBaseline = "top";
             ctx.textAlign = "left";
 
-            let y = 10; // Padding atas 10px
+            let y = 10; 
             for (let line of lines) {
-                // Deteksi jika baris tersebut memiliki perintah huruf tebal dari tag span HTML
                 let isBold = line.includes('<span class="bold-text">');
-                
-                // Hapus semua tag HTML untuk dicetak ke kanvas
                 let cleanLine = line.replace(/<[^>]*>?/gm, ''); 
 
-                // Terapkan Font Courier New
                 if (isBold) {
                     ctx.font = `bold ${fontSize}px 'Courier New', Courier, monospace`;
                 } else {
@@ -325,11 +321,11 @@
                 }
 
                 ctx.fillStyle = "black";
-                ctx.fillText(cleanLine, 0, y);
+                // Digeser 12 pixel dari pinggir agar tidak terpotong (margin aman)
+                ctx.fillText(cleanLine, 12, y);
                 y += lineHeight;
             }
 
-            // Eksekusi Gambar ke ByteArray ESC/POS
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
             const xL = (canvas.width / 8) % 256;
             const xH = Math.floor((canvas.width / 8) / 256);
@@ -361,13 +357,13 @@
         });
     }
 
-    async function getFooterEmojiPrintData(textLeft, textRight, printWidthDots = 384) {
+    async function getFooterEmojiPrintData(textLeft, textRight, printWidthDots = 576) { // 576 = 80mm
         return new Promise((resolve) => {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
             
             const width = Math.floor(printWidthDots / 8) * 8;
-            const height = 40;
+            const height = 60; // Tinggi dinaikkan agar proporsional di kertas besar
 
             canvas.width = width;
             canvas.height = height;
@@ -376,22 +372,23 @@
             ctx.fillRect(0, 0, width, height);
 
             ctx.fillStyle = "black";
-            ctx.font = "18px 'Courier New', Courier, monospace, 'Segoe UI Emoji'";
+            // Ukuran font untuk footer dibesarkan jadi 22px
+            ctx.font = "22px 'Courier New', Courier, monospace, 'Segoe UI Emoji'";
             ctx.textBaseline = "middle";
 
             ctx.textAlign = "left";
-            ctx.fillText(textLeft, 5, height / 2);
+            ctx.fillText(textLeft, 12, height / 2); // margin kiri 12px
 
             const img = new Image();
             img.crossOrigin = "Anonymous";
             
             img.onload = () => {
                 ctx.textAlign = "right";
-                ctx.fillText(textRight, width - 5, height / 2);
+                ctx.fillText(textRight, width - 12, height / 2); // margin kanan 12px
                 
                 const textWidth = ctx.measureText(textRight).width;
-                const iconSize = 20;
-                const iconX = width - 5 - textWidth - 5 - iconSize; 
+                const iconSize = 26; // icon lebih besar
+                const iconX = width - 12 - textWidth - 8 - iconSize; 
                 const iconY = (height / 2) - (iconSize / 2);
                 
                 ctx.drawImage(img, iconX, iconY, iconSize, iconSize);
@@ -400,7 +397,7 @@
 
             img.onerror = () => {
                 ctx.textAlign = "right";
-                ctx.fillText("📷 " + textRight, width - 5, height / 2);
+                ctx.fillText("📷 " + textRight, width - 12, height / 2);
                 selesaikanCanvas();
             };
             img.src = "instagram.png"; 
@@ -442,10 +439,10 @@
         if (!printerCharacteristic) return false;
 
         try {
-            const logoBytes = await getLogoPrintData(logoURL, 192); 
-            // PERUBAHAN: Teks struk kini diproses sebagai GAMBAR Courier New
-            const textBytes = await getStrukImagePrintData(strukBaseTeks, 384); 
-            const footerBytes = await getFooterEmojiPrintData("📞 Halo Pos 1500161", "@posindonesia.ig", 368);
+            // Lebar data cetak disesuaikan ke standar 80mm
+            const logoBytes = await getLogoPrintData(logoURL, 280); 
+            const textBytes = await getStrukImagePrintData(strukBaseTeks, 576); 
+            const footerBytes = await getFooterEmojiPrintData("📞 Halo Pos 1500161", "@posindonesia.ig", 576);
             
             const initCmd = new Uint8Array([0x1B, 0x40]); 
             const alignCenterCmd = new Uint8Array([0x1B, 0x61, 0x01]); 
@@ -465,7 +462,6 @@
             }
             
             payload.set(alignLeftCmd, offset); offset += alignLeftCmd.length;
-            // Kirim gambar struk Courier New
             payload.set(textBytes, offset); offset += textBytes.length;
             
             payload.set(footerBytes, offset); offset += footerBytes.length;
@@ -479,7 +475,7 @@
                 } else {
                     await printerCharacteristic.writeValue(chunk);
                 }
-                // Delay ditingkatkan menjadi 40ms karena beban data pengiriman gambar cukup besar
+                // Delay dijaga di 40ms agar data yang sangat besar tidak overload di buffer printer
                 await new Promise(r => setTimeout(r, 40)); 
             }
             return true;
@@ -539,7 +535,6 @@
         const fStroom = formatRp(stroom, true);
         const fAdmin = formatRp(admin);
 
-        // Template string akan digunakan secara langsung untuk dikonversi menjadi gambar
         let strukBaseTeks = 
             centerText("PT POS INDONESIA (PERSERO)") + "\n" +
             centerText(kpc) + "\n\n" +
@@ -590,12 +585,12 @@
         
         let modalHTML = 
             `<div class="struk-thermal">` +
-            `<div style="display: flex; justify-content: center; margin-bottom: 10px;"><img src="${logoURL}" alt="Logo Pos" style="width: 90px; height: auto; filter: grayscale(100%) contrast(1.5);"></div>` + 
+            `<div style="display: flex; justify-content: center; margin-bottom: 10px;"><img src="${logoURL}" alt="Logo Pos" style="width: 110px; height: auto; filter: grayscale(100%) contrast(1.5);"></div>` + 
             strukBaseTeks + 
-            `<div style="display: flex; justify-content: space-between; margin-top: 10px; font-family: 'Courier New', Courier, monospace; align-items: center;">` +
+            `<div style="display: flex; justify-content: space-between; margin-top: 10px; font-family: 'Courier New', Courier, monospace; align-items: center; padding: 0 5px;">` +
             `<span>📞 Halo Pos 1500161</span>` +
-            `<span style="display: flex; align-items: center; gap: 3px;">` +
-            `<img src="instagram.png" alt="IG" style="width: 16px; height: 16px;">` +
+            `<span style="display: flex; align-items: center; gap: 4px;">` +
+            `<img src="instagram.png" alt="IG" style="width: 18px; height: 18px;">` +
             `@posindonesia.ig</span></div>` +
             `</div>`;
 
@@ -604,13 +599,12 @@
 
         if (printerCharacteristic) {
             const btn = document.getElementById('btnCetak');
-            btn.innerText = "SEDANG MENCETAK...";
+            btn.innerText = "SEDANG MENCETAK (MOHON TUNGGU)...";
             btn.disabled = true;
 
-            // Langsung memanggil fungsi dengan teks HTML yang memiliki penanda span Bold
             const sukses = await kirimKePrinterAsli(strukBaseTeks, logoURL);
             
-            btn.innerText = "CETAK STRUK IDENTIK V3";
+            btn.innerText = "CETAK STRUK IDENTIK (80MM)";
             btn.disabled = false;
         }
     }
