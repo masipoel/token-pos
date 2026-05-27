@@ -29,19 +29,30 @@
         .close-btn { background: #ff4c4c; color: white; border: none; font-size: 16px; font-weight: bold; cursor: pointer; width: 28px; height: 28px; border-radius: 50%; display: flex; justify-content: center; align-items: center; }
         .close-btn:hover { background: #e60000; }
         
-        /* Area Struk / Meja Kasir */
-        .struk-area { width: 100%; height: 500px; background-color: #d1d5db; display: flex; justify-content: center; overflow-y: auto; padding: 20px 0; box-sizing: border-box; }
+        /* Area Struk / Meja Kasir (DIPERBAIKI) */
+        .struk-area { 
+            width: 100%; 
+            height: 500px; 
+            background-color: #d1d5db; 
+            overflow-y: auto; /* Mengaktifkan Scroll Vertikal */
+            padding: 20px; 
+            box-sizing: border-box;
+            text-align: center; /* Memposisikan gambar ke tengah */
+            display: block; /* Mengganti flex agar child tidak terkompresi */
+        }
         
-        /* Preview Canvas (100% Identik dengan Hasil Print Thermal) */
+        /* Preview Canvas (DIPERBAIKI) */
         .struk-img-preview {
-            width: 100%;
-            max-width: 420px;
-            height: auto;
+            width: 100%; 
+            max-width: 400px;
+            height: auto !important; /* Memastikan aspect ratio tinggi gambar proposional */
             background-color: white;
             box-shadow: -2px 2px 10px rgba(0,0,0,0.15);
             border-top: 2px dashed #999;
             border-bottom: 2px dashed #999;
-            image-rendering: pixelated; /* Agar terlihat tajam seperti printer */
+            display: block;
+            margin: 0 auto; /* Menjaga gambar tetap di tengah secara horizontal */
+            /* image-rendering: pixelated; DIHAPUS agar font tidak hancur saat di-scale */
         }
     </style>
 </head>
@@ -104,8 +115,7 @@
             <button class="close-btn" onclick="tutupSimulasi()">×</button>
         </div>
         <div class="struk-area" id="strukOutput">
-            <!-- Gambar Struk dari Canvas akan dimuat di sini -->
-        </div>
+            </div>
     </div>
 </div>
 
@@ -304,15 +314,13 @@
         // ============================
         // C. GAMBAR ICON FOOTER (KIRI - KANAN)
         // ============================
-        // currentY tetap agar posisinya merapat dengan teks di atasnya (tidak ada padding ekstra)
-        // Margin ditarik ke tepi agar tengahnya tidak saling berdempetan
         const margin = 10; 
         const iconSize = 24;
         const gap = 6; 
         
         ctx.textBaseline = "middle";
         const footerMidY = currentY + (iconSize / 2);
-        const footerFont = `22px 'Courier New', Courier, monospace`; // Font footer disesuaikan
+        const footerFont = `22px 'Courier New', Courier, monospace`;
 
         // Kiri: Telepon
         ctx.textAlign = "left";
@@ -530,7 +538,7 @@
         const canvas = await buildReceiptCanvas(strukBaseTeks, logoURL, "Halo Pos 1500161", "@posindonesia.ig", 576);
         const dataUrl = canvas.toDataURL("image/png");
 
-        // UI HTML sekarang HANYA menampilkan output gambar (Menjamin 100% sama dengan cetakan fisik)
+        // UI HTML sekarang memuat gambar dengan scroll yang sudah diperbaiki
         document.getElementById('strukOutput').innerHTML = `<img src="${dataUrl}" class="struk-img-preview" alt="Struk Real">`;
         document.getElementById('modalStruk').style.display = 'flex';
 
