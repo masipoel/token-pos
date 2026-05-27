@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loket POS - Token Listrik V3 (Fix Urutan Cetak & Resize Logo)</title>
+    <title>Loket POS - Token Listrik V3 (Simulasi Real & Fix Jarak)</title>
     <style>
         body { font-family: 'Courier New', Courier, monospace; background-color: #e8e8e8; display: flex; justify-content: center; padding-top: 20px; }
         .container { width: 420px; background-color: #fff; padding: 10px 20px; box-sizing: border-box; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-radius: 8px; }
@@ -32,24 +32,17 @@
         /* Area Struk / Meja Kasir */
         .struk-area { width: 100%; height: 500px; background-color: #d1d5db; display: flex; justify-content: center; overflow-y: auto; padding: 20px 0; box-sizing: border-box; }
         
-        /* Kertas Thermal Simulasi (Diperlebar untuk 80mm) */
-        .struk-thermal {
-            background-color: #fdfdfc;
-            width: 420px; 
-            min-height: max-content;
-            padding: 20px 20px;
+        /* Preview Canvas (100% Identik dengan Hasil Print Thermal) */
+        .struk-img-preview {
+            width: 100%;
+            max-width: 420px;
+            height: auto;
+            background-color: white;
             box-shadow: -2px 2px 10px rgba(0,0,0,0.15);
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 15px; 
-            line-height: 1.25;
-            color: #111;
-            white-space: pre; 
-            border-top: 2px dashed #ccc; 
-            border-bottom: 2px dashed #ccc; 
-            position: relative;
-            margin-bottom: 20px;
+            border-top: 2px dashed #999;
+            border-bottom: 2px dashed #999;
+            image-rendering: pixelated; /* Agar terlihat tajam seperti printer */
         }
-        .bold-text { font-weight: 900; }
     </style>
 </head>
 <body>
@@ -110,7 +103,9 @@
             <h3>Simulasi Cetak Struk</h3>
             <button class="close-btn" onclick="tutupSimulasi()">×</button>
         </div>
-        <div class="struk-area" id="strukOutput"></div>
+        <div class="struk-area" id="strukOutput">
+            <!-- Gambar Struk dari Canvas akan dimuat di sini -->
+        </div>
     </div>
 </div>
 
@@ -234,18 +229,15 @@
     }
 
     // =========================================================================
-    // FUNGSI BARU: MASTER IMAGE RENDERER (Menyatukan Logo + Teks + Footer)
-    // Tujuannya memotong gambar menjadi blok 200px agar memori printer tidak error
-    // dan urutan cetakan dijamin 100% sempurna dari atas ke bawah.
+    // FUNGSI 1: MEMBANGUN CANVAS MASTER STRUK (Digunakan untuk Simulasi & Print)
     // =========================================================================
-    async function getFullReceiptImagePrintData(htmlText, logoSrc, textPhone, textIG, printWidthDots = 576) {
-        
+    async function buildReceiptCanvas(htmlText, logoSrc, textPhone, textIG, printWidthDots = 576) {
         // Helper Loading Gambar
         const loadImage = (src) => new Promise((resolve) => {
             const img = new Image();
             img.crossOrigin = "Anonymous";
             img.onload = () => resolve(img);
-            img.onerror = () => resolve(null); // Lewati jika gambar tidak ditemukan
+            img.onerror = () => resolve(null);
             img.src = src;
         });
 
@@ -257,20 +249,17 @@
         const fontSize = 23; 
         const lineHeight = 32;
 
-        // 1. Kalkulasi Tinggi Total Kertas
-        let totalHeight = 10; // Padding atas margin kertas
-        
-        // Logo diperkecil 2x lipat (Lebar 95 pixel, sebelumnya 190)
-        let logoWidth = 95; 
+        let totalHeight = 10; 
+        let logoWidth = 95; // Logo diperkecil
         let logoHeight = 0;
+        
         if (logoImg) {
             logoHeight = Math.floor((logoWidth / logoImg.width) * logoImg.height);
             totalHeight += logoHeight + 20; 
         }
         
-        totalHeight += (lines.length * lineHeight); // Tinggi Blok Teks
-        // Padding bawah dihapus agar rapat dengan icon footer
-        totalHeight += 50; // Jarak/Tinggi area Icon Footer (Phone & IG)
+        totalHeight += (lines.length * lineHeight); 
+        totalHeight += 45; // Jarak/Tinggi area Icon Footer (Phone & IG)
 
         // Buat Master Canvas Virtual
         const canvas = document.createElement('canvas');
@@ -315,23 +304,23 @@
         // ============================
         // C. GAMBAR ICON FOOTER (KIRI - KANAN)
         // ============================
-        // Kurangi offset Y agar footer naik dan merapat dengan teks terakhir
-        currentY -= 8; 
-        const margin = 30; // Posisi menjorok ke dalam (seperti di foto)
-        const iconSize = 26;
-        const gap = 8; // Spasi dari icon ke huruf
+        // currentY tetap agar posisinya merapat dengan teks di atasnya (tidak ada padding ekstra)
+        // Margin ditarik ke tepi agar tengahnya tidak saling berdempetan
+        const margin = 10; 
+        const iconSize = 24;
+        const gap = 6; 
         
         ctx.textBaseline = "middle";
         const footerMidY = currentY + (iconSize / 2);
+        const footerFont = `22px 'Courier New', Courier, monospace`; // Font footer disesuaikan
 
         // Kiri: Telepon
         ctx.textAlign = "left";
+        ctx.font = footerFont;
         if (phoneImg) {
             ctx.drawImage(phoneImg, margin, currentY, iconSize, iconSize);
-            ctx.font = `23px 'Courier New', Courier, monospace`;
             ctx.fillText(textPhone, margin + iconSize + gap, footerMidY);
         } else {
-            ctx.font = `23px 'Courier New', Courier, monospace`;
             ctx.fillText("📞 " + textPhone, margin, footerMidY);
         }
 
@@ -346,10 +335,14 @@
             ctx.fillText("IG:" + textIG, canvas.width - margin, footerMidY);
         }
 
-        // ============================
-        // D. PROSES PEMOTONGAN (SLICING) UNTUK PRINTER
-        // (Tiap potongan max tinggi 200px agar printer tidak error di tengah jalan)
-        // ============================
+        return canvas;
+    }
+
+    // =========================================================================
+    // FUNGSI 2: MEMOTONG CANVAS MENJADI BYTE ARRAY UNTUK PRINTER
+    // =========================================================================
+    function sliceCanvasForPrinter(canvas) {
+        const ctx = canvas.getContext('2d');
         const MAX_SLICE_HEIGHT = 200; 
         const slices = [];
         
@@ -389,17 +382,18 @@
         return slices;
     }
 
-
-    async function kirimKePrinterAsli(strukBaseTeks, logoURL) {
+    // =========================================================================
+    // FUNGSI 3: MENGIRIM DATA HASIL POTONGAN KE PRINTER
+    // =========================================================================
+    async function kirimKePrinterAsli(canvas) {
         if (!printerCharacteristic) return false;
 
         try {
-            // Ambil semua tumpukan array (chunks) gambar struk dari fungsi Master
-            const imageChunks = await getFullReceiptImagePrintData(strukBaseTeks, logoURL, "Halo Pos 1500161", "@posindonesia.ig", 576);
+            const imageChunks = sliceCanvasForPrinter(canvas);
             
             const initCmd = new Uint8Array([0x1B, 0x40]); 
             const alignLeftCmd = new Uint8Array([0x1B, 0x61, 0x00]); 
-            const lineFeedCmd = new Uint8Array([0x0A, 0x0A, 0x0A, 0x0A, 0x0A]); 
+            const lineFeedCmd = new Uint8Array([0x0A, 0x0A, 0x0A, 0x0A]); 
             
             let totalLength = initCmd.length + alignLeftCmd.length;
             for (const chunk of imageChunks) totalLength += chunk.length;
@@ -411,7 +405,6 @@
             payload.set(initCmd, offset); offset += initCmd.length;
             payload.set(alignLeftCmd, offset); offset += alignLeftCmd.length;
             
-            // Masukkan gambar lapis demi lapis ke memori buffer secara berurutan
             for (const chunk of imageChunks) {
                 payload.set(chunk, offset); offset += chunk.length;
             }
@@ -533,22 +526,12 @@
 
         const logoURL = "logo.png"; 
         
-        let modalHTML = 
-            `<div class="struk-thermal">` +
-            // Logo juga diperkecil 2x lipat pada simulasi browser (sekarang 55px)
-            `<div style="display: flex; justify-content: center; margin-bottom: 10px;"><img src="${logoURL}" alt="Logo Pos" style="width: 55px; height: auto; filter: grayscale(100%) contrast(1.5);"></div>` + 
-            strukBaseTeks + 
-            // margin-top diubah menjadi -20px agar rapat pada simulasi UI HTML
-            `<div style="display: flex; justify-content: space-between; margin-top: -20px; font-family: 'Courier New', Courier, monospace; align-items: center; padding: 0 30px;">` +
-            `<span style="display: flex; align-items: center; gap: 8px;">` +
-            `<img src="phone.png" alt="📞" style="width: 22px; height: 22px;" onerror="this.outerHTML='<span style=\\'font-size: 18px;\\'>📞</span>'">` +
-            `Halo Pos 1500161</span>` +
-            `<span style="display: flex; align-items: center; gap: 8px;">` +
-            `<img src="instagram.png" alt="IG" style="width: 22px; height: 22px;">` +
-            `@posindonesia.ig</span></div>` +
-            `</div>`;
+        // Membangun gambar langsung dari render thermal
+        const canvas = await buildReceiptCanvas(strukBaseTeks, logoURL, "Halo Pos 1500161", "@posindonesia.ig", 576);
+        const dataUrl = canvas.toDataURL("image/png");
 
-        document.getElementById('strukOutput').innerHTML = modalHTML;
+        // UI HTML sekarang HANYA menampilkan output gambar (Menjamin 100% sama dengan cetakan fisik)
+        document.getElementById('strukOutput').innerHTML = `<img src="${dataUrl}" class="struk-img-preview" alt="Struk Real">`;
         document.getElementById('modalStruk').style.display = 'flex';
 
         if (printerCharacteristic) {
@@ -556,7 +539,7 @@
             btn.innerText = "SEDANG MENCETAK (MOHON TUNGGU)...";
             btn.disabled = true;
 
-            const sukses = await kirimKePrinterAsli(strukBaseTeks, logoURL);
+            await kirimKePrinterAsli(canvas);
             
             btn.innerText = "CETAK STRUK IDENTIK (80MM)";
             btn.disabled = false;
