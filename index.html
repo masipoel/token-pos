@@ -6,7 +6,7 @@
     <title>Loket POS - Token Listrik V3 (Simulasi Real & Fix Jarak)</title>
     <style>
         body { font-family: 'Courier New', Courier, monospace; background-color: #e8e8e8; display: flex; justify-content: center; padding-top: 20px; }
-        .container { width: 420px; background-color: #fff; padding: 10px 20px; box-sizing: border-box; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-radius: 8px; }
+        .container { width: 440px; background-color: #fff; padding: 10px 20px; box-sizing: border-box; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-radius: 8px; }
         h2 { text-align: center; font-size: 18px; margin-bottom: 15px; margin-top: 5px; color: #333; }
         fieldset { border: 1px solid #ccc; border-radius: 4px; padding: 10px; margin-bottom: 15px; background-color: #fafafa; }
         legend { padding: 0 5px; font-size: 14px; font-weight: bold; color: #555; }
@@ -14,9 +14,9 @@
         select, input[type="text"] { padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-family: 'Courier New', Courier, monospace; font-size: 13px; }
         .btn-scan { background-color: #008CBA; color: white; border: none; padding: 6px 12px; cursor: pointer; border-radius: 4px; font-weight: bold; font-family: 'Courier New', Courier, monospace; }
         .btn-scan:hover { background-color: #007399; }
-        .form-grid { display: grid; grid-template-columns: 130px 1fr; gap: 10px 0; align-items: center; margin-bottom: 20px; }
-        .form-grid label { font-size: 14px; color: #444; font-weight: 500; }
-        .form-grid input, .form-grid select { width: 220px; }
+        .form-grid { display: grid; grid-template-columns: 140px 1fr; gap: 10px 0; align-items: center; margin-bottom: 20px; }
+        .form-grid label { font-size: 14px; color: #444; font-weight: 600; }
+        .form-grid input, .form-grid select { width: 230px; }
         .btn-cetak { width: 100%; background-color: #ff7300; color: white; border: none; padding: 12px; font-size: 16px; font-weight: bold; font-family: 'Courier New', Courier, monospace; cursor: pointer; border-radius: 4px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(255, 115, 0, 0.3); }
         .btn-cetak:hover { background-color: #e66800; }
         .btn-cetak:disabled { background-color: #ccc; cursor: not-allowed; box-shadow: none; }
@@ -29,30 +29,29 @@
         .close-btn { background: #ff4c4c; color: white; border: none; font-size: 16px; font-weight: bold; cursor: pointer; width: 28px; height: 28px; border-radius: 50%; display: flex; justify-content: center; align-items: center; }
         .close-btn:hover { background: #e60000; }
         
-        /* Area Struk / Meja Kasir (DIPERBAIKI) */
+        /* Area Struk / Meja Kasir */
         .struk-area { 
             width: 100%; 
             height: 500px; 
             background-color: #d1d5db; 
-            overflow-y: auto; /* Mengaktifkan Scroll Vertikal */
+            overflow-y: auto; 
             padding: 20px; 
             box-sizing: border-box;
-            text-align: center; /* Memposisikan gambar ke tengah */
-            display: block; /* Mengganti flex agar child tidak terkompresi */
+            text-align: center; 
+            display: block; 
         }
         
-        /* Preview Canvas (DIPERBAIKI) */
+        /* Preview Canvas */
         .struk-img-preview {
             width: 100%; 
             max-width: 400px;
-            height: auto !important; /* Memastikan aspect ratio tinggi gambar proposional */
+            height: auto !important; 
             background-color: white;
             box-shadow: -2px 2px 10px rgba(0,0,0,0.15);
             border-top: 2px dashed #999;
             border-bottom: 2px dashed #999;
             display: block;
-            margin: 0 auto; /* Menjaga gambar tetap di tengah secara horizontal */
-            /* image-rendering: pixelated; DIHAPUS agar font tidak hancur saat di-scale */
+            margin: 0 auto; 
         }
     </style>
 </head>
@@ -88,17 +87,44 @@
 
         <label>Tarif / Daya:</label>
         <select id="combo_daya">
-            <option value="R1/450 VA">R1/450 VA</option>
-            <option value="R1/900 VA">R1/900 VA</option>
-            <option value="S1/3500 VA" selected>S1/3500 VA</option>
+            <option value="R1/450 VA">R1/450 VA (Subsidi)</option>
+            <option value="R1/900 VA">R1/900 VA (Subsidi)</option>
+            <option value="R1M/900 VA">R1M/900 VA (Non-Subsidi)</option>
+            <option value="R1/1300 VA">R1/1300 VA</option>
+            <option value="R1/2200 VA">R1/2200 VA</option>
+            <option value="R2/3500 VA">R2/3500 VA</option>
+            <option value="R2/4400 VA">R2/4400 VA</option>
+            <option value="R2/5500 VA">R2/5500 VA</option>
+            <option value="R3/6600 VA">R3/6600 VA</option>
+            
+            <option value="B1/450 VA">B1/450 VA</option>
+            <option value="B1/900 VA">B1/900 VA</option>
+            <option value="B1/1300 VA">B1/1300 VA</option>
             <option value="B1/2200 VA">B1/2200 VA</option>
+            <option value="S1/450 VA">S1/450 VA</option>
+            <option value="S2/900 VA">S2/900 VA</option>
+            <option value="S2/2200 VA">S2/2200 VA</option>
+            <option value="S2/3500 VA" selected>S2/3500 VA</option>
         </select>
 
         <label>RP STROOM:</label>
         <select id="combo_nominal">
-            <option value="50000">50000</option>
-            <option value="100000">100000</option>
-            <option value="1000000" selected>1000000</option>
+            <option value="20000">20.000</option>
+            <option value="50000">50.000</option>
+            <option value="100000">100.000</option>
+            <option value="200000">200.000</option>
+            <option value="500000">500.000</option>
+            <option value="1000000" selected>1.000.000</option>
+            <option value="5000000">5.000.000</option>
+            <option value="10000000">10.000.000</option>
+            <option value="50000000">50.000.000</option>
+        </select>
+
+        <label>ADMIN POS:</label>
+        <select id="combo_admin">
+            <option value="2000" selected>Rp 2.000</option>
+            <option value="2500">Rp 2.500</option>
+            <option value="3500">Rp 3.500</option>
         </select>
 
         <label>Tanggal Transaksi:</label>
@@ -181,8 +207,24 @@
             document.getElementById('entry_kpc').value = data.kpc || "";
             document.getElementById('entry_meter').value = data.meter || "";
             document.getElementById('entry_nama').value = data.nama || "";
-            document.getElementById('combo_daya').value = data.daya || "S1/3500 VA";
+            document.getElementById('combo_daya').value = data.daya || "S2/3500 VA";
         }
+    }
+
+    // Hitung KWH berdasarkan tarif yang berlaku
+    function hitungKWH(nominal, daya) {
+        let tarif = 1444.70; // Tarif Default
+        let d = daya.toUpperCase();
+        
+        if (d.includes("450")) tarif = 415; // R1/450 dsb
+        else if (d.includes("R1/900")) tarif = 605; // R1/900 Subsidi
+        else if (d.includes("R1M/900")) tarif = 1352; // R1M/900 Non-subsidi
+        else if (d.includes("1300") || d.includes("2200")) tarif = 1444.70;
+        else if (d.includes("3500") || d.includes("4400") || d.includes("5500") || d.includes("6600")) tarif = 1699.53;
+        
+        // (Rumus standar disederhanakan, menyesuaikan struk aslinya yang PPJ = 0)
+        let kwh = nominal / tarif;
+        return kwh.toFixed(1).replace(".", ",");
     }
 
     async function pindaiPrinter() {
@@ -260,7 +302,7 @@
         const lineHeight = 32;
 
         let totalHeight = 10; 
-        let logoWidth = 185; // Logo diperkecil
+        let logoWidth = 185; 
         let logoHeight = 0;
         
         if (logoImg) {
@@ -269,7 +311,9 @@
         }
         
         totalHeight += (lines.length * lineHeight); 
-        totalHeight += 45; // Jarak/Tinggi area Icon Footer (Phone & IG)
+        
+        // DITAMBAHKAN ~30px (menjadi 75) UNTUK MENAMBAHKAN 1 SPASI KOSONG DI BAWAH FOOTER
+        totalHeight += 75; 
 
         // Buat Master Canvas Virtual
         const canvas = document.createElement('canvas');
@@ -332,15 +376,15 @@
             ctx.fillText("📞 " + textPhone, margin, footerMidY);
         }
 
-        // Kanan: Instagram
+        // Kanan: Instagram (ditambahkan text space kosong di akhir parameter)
         ctx.textAlign = "right";
         if (igImg) {
             const textWidth = ctx.measureText(textIG).width;
             const iconX = canvas.width - margin - textWidth - gap - iconSize;
             ctx.drawImage(igImg, iconX, currentY, iconSize, iconSize);
-            ctx.fillText(textIG, canvas.width - margin, footerMidY);
+            ctx.fillText(textIG + " ", canvas.width - margin, footerMidY);
         } else {
-            ctx.fillText("IG:" + textIG, canvas.width - margin, footerMidY);
+            ctx.fillText("IG:" + textIG + " ", canvas.width - margin, footerMidY);
         }
 
         return canvas;
@@ -401,7 +445,7 @@
             
             const initCmd = new Uint8Array([0x1B, 0x40]); 
             const alignLeftCmd = new Uint8Array([0x1B, 0x61, 0x00]); 
-            const lineFeedCmd = new Uint8Array([0x0A, 0x0A, 0x0A, 0x0A]); 
+            const lineFeedCmd = new Uint8Array([0x0A, 0x0A, 0x0A, 0x0A, 0x0A]); // Extra line feed 
             
             let totalLength = initCmd.length + alignLeftCmd.length;
             for (const chunk of imageChunks) totalLength += chunk.length;
@@ -466,13 +510,20 @@
         const meter = document.getElementById('entry_meter').value;
         const idpel = document.getElementById('combo_idpel').value;
         const nama = document.getElementById('entry_nama').value;
-        const daya = document.getElementById('combo_daya').value;
+        
+        // Ambil elemen daya (mengabaikan teks kurung subsidi/non-subsidi)
+        let dayaRaw = document.getElementById('combo_daya').value;
+        const daya = dayaRaw.split(" ")[0] + " VA"; 
+
         const nominalStroom = parseInt(document.getElementById('combo_nominal').value);
+        const adminPos = parseInt(document.getElementById('combo_admin').value);
         const strTanggal = document.getElementById('entry_tanggal').value;
 
-        const adminPos = 2000;
         const rpBayar = nominalStroom + adminPos;
-        let jmlKwh = nominalStroom === 1000000 ? "1.111,2" : (nominalStroom / 1444.7).toFixed(1).replace(".", ",");
+        
+        // Panggil fungsi JML KWH Otomatis
+        let jmlKwh = hitungKWH(nominalStroom, dayaRaw);
+
         const resi = `98356-21/${new Date().getFullYear()}/${Math.floor(Math.random() * 900000) + 100000}`;
         const petugas = Math.floor(Math.random() * 900000000) + 100000000;
         const noRef = `1098356069${petugas}99${Math.floor(Math.random() * 900000000) + 100000000}`;
@@ -538,7 +589,7 @@
         const canvas = await buildReceiptCanvas(strukBaseTeks, logoURL, "Halo Pos 1500161", "@posindonesia.ig", 576);
         const dataUrl = canvas.toDataURL("image/png");
 
-        // UI HTML sekarang memuat gambar dengan scroll yang sudah diperbaiki
+        // UI HTML memuat gambar
         document.getElementById('strukOutput').innerHTML = `<img src="${dataUrl}" class="struk-img-preview" alt="Struk Real">`;
         document.getElementById('modalStruk').style.display = 'flex';
 
