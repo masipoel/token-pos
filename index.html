@@ -300,47 +300,86 @@
             canvas.width = width;
             canvas.height = height;
 
+            // Beri background putih
             ctx.fillStyle = "white";
             ctx.fillRect(0, 0, width, height);
 
+            // Pengaturan Teks
             ctx.fillStyle = "black";
             ctx.font = "18px 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif";
             ctx.textBaseline = "middle";
 
+            // 1. Gambar Teks Kiri (Halo Pos)
             ctx.textAlign = "left";
             ctx.fillText(textLeft, 5, height / 2);
 
-            ctx.textAlign = "right";
-            ctx.fillText(textRight, width - 5, height / 2);
+            // 2. Load Logo Instagram untuk Kanan
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            
+            img.onload = () => {
+                // Gambar teks akun IG
+                ctx.textAlign = "right";
+                ctx.fillText(textRight, width - 5, height / 2);
+                
+                // Ukur lebar teks agar icon IG pas berada di sebelah kirinya
+                const textWidth = ctx.measureText(textRight).width;
+                
+                // Atur ukuran dan posisi icon (ukuran 20x20 pixel)
+                const iconSize = 20;
+                const iconX = width - 5 - textWidth - 5 - iconSize; // 5px jarak dari teks
+                const iconY = (height / 2) - (iconSize / 2);
+                
+                // Gambar Icon IG ke canvas
+                ctx.drawImage(img, iconX, iconY, iconSize, iconSize);
 
-            const imgData = ctx.getImageData(0, 0, width, height).data;
-            const xL = (width / 8) % 256;
-            const xH = Math.floor((width / 8) / 256);
-            const yL = height % 256;
-            const yH = Math.floor(height / 256);
+                // Eksekusi konversi ke byte
+                selesaikanCanvas();
+            };
 
-            const data = [];
-            data.push(0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH); 
+            img.onerror = () => {
+                // Jika gambar gagal dimuat, fallback cetak teksnya saja + emoji kamera
+                console.warn("Logo IG gagal dimuat ke canvas printer.");
+                ctx.textAlign = "right";
+                ctx.fillText("📷 " + textRight, width - 5, height / 2);
+                selesaikanCanvas();
+            };
 
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x += 8) {
-                    let byte = 0;
-                    for (let bit = 0; bit < 8; bit++) {
-                        const idx = ((y * width) + x + bit) * 4;
-                        const r = imgData[idx];
-                        const g = imgData[idx + 1];
-                        const b = imgData[idx + 2];
-                        const alpha = imgData[idx + 3];
+            // Panggil gambar instagram (Case Sensitive!)
+            img.src = "instagram.png"; 
 
-                        const grayscale = (r * 0.299 + g * 0.587 + b * 0.114);
-                        if (grayscale < 128 && alpha > 128) {
-                            byte |= (1 << (7 - bit));
+            // Fungsi internal untuk mengubah canvas ke byte array printer
+            function selesaikanCanvas() {
+                const imgData = ctx.getImageData(0, 0, width, height).data;
+                const xL = (width / 8) % 256;
+                const xH = Math.floor((width / 8) / 256);
+                const yL = height % 256;
+                const yH = Math.floor(height / 256);
+
+                const data = [];
+                data.push(0x1D, 0x76, 0x30, 0x00, xL, xH, yL, yH); 
+
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x += 8) {
+                        let byte = 0;
+                        for (let bit = 0; bit < 8; bit++) {
+                            const idx = ((y * width) + x + bit) * 4;
+                            const r = imgData[idx];
+                            const g = imgData[idx + 1];
+                            const b = imgData[idx + 2];
+                            const alpha = imgData[idx + 3];
+
+                            // Algoritma grayscale to monochrome (hitam putih thermal)
+                            const grayscale = (r * 0.299 + g * 0.587 + b * 0.114);
+                            if (grayscale < 128 && alpha > 128) {
+                                byte |= (1 << (7 - bit));
+                            }
                         }
+                        data.push(byte);
                     }
-                    data.push(byte);
                 }
+                resolve(new Uint8Array(data));
             }
-            resolve(new Uint8Array(data));
         });
     }
 
@@ -351,7 +390,8 @@
             const encoder = new TextEncoder();
             
             const logoBytes = await getLogoPrintData(logoURL, 192); 
-            const footerBytes = await getFooterEmojiPrintData("📞 Halo Pos 1500161", "📷@posindonesia.ig", 368);
+            // Panggilan untuk footer IG disesuaikan (tanpa emoji kamera)
+            const footerBytes = await getFooterEmojiPrintData("📞 Halo Pos 1500161", "@posindonesia.ig", 368);
             
             const initCmd = new Uint8Array([0x1B, 0x40]); 
             const alignCenterCmd = new Uint8Array([0x1B, 0x61, 0x01]); 
@@ -500,7 +540,7 @@
 
         const logoURL = "logo.png"; 
         
-        // TAMPILAN KERTAS THERMAL UNTUK BROWSER (Tanpa enter/spasi HTML di pembungkus gambar agar tepat di tengah)
+        // TAMPILAN KERTAS THERMAL UNTUK BROWSER (Dengan gambar IG dari file instagram.png)
         let modalHTML = 
             `<div class="struk-thermal">` +
             `<div style="display: flex; justify-content: center; margin-bottom: 10px;"><img src="${logoURL}" alt="Logo Pos" style="width: 90px; height: auto; filter: grayscale(100%) contrast(1.5);"></div>` + 
@@ -511,6 +551,7 @@
             `<img src="instagram.png" alt="IG" style="width: 16px; height: 16px;">` +
             `@posindonesia.ig</span></div>` +
             `</div>`;
+
         document.getElementById('strukOutput').innerHTML = modalHTML;
         document.getElementById('modalStruk').style.display = 'flex';
 
