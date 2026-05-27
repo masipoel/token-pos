@@ -91,12 +91,11 @@
             <option value="R1/900 VA">R1/900 VA (Subsidi)</option>
             <option value="R1M/900 VA">R1M/900 VA (Non-Subsidi)</option>
             <option value="R1/1300 VA">R1/1300 VA</option>
-            <option value="R1/2200 VA">R1/2200 VA</option>
+            <option value="R1/2200 VA" selected>R1/2200 VA</option>
             <option value="R2/3500 VA">R2/3500 VA</option>
             <option value="R2/4400 VA">R2/4400 VA</option>
             <option value="R2/5500 VA">R2/5500 VA</option>
             <option value="R3/6600 VA">R3/6600 VA</option>
-            
             <option value="B1/450 VA">B1/450 VA</option>
             <option value="B1/900 VA">B1/900 VA</option>
             <option value="B1/1300 VA">B1/1300 VA</option>
@@ -104,7 +103,7 @@
             <option value="S1/450 VA">S1/450 VA</option>
             <option value="S2/900 VA">S2/900 VA</option>
             <option value="S2/2200 VA">S2/2200 VA</option>
-            <option value="S2/3500 VA" selected>S2/3500 VA</option>
+            <option value="S2/3500 VA">S2/3500 VA</option>
         </select>
 
         <label>RP STROOM:</label>
@@ -113,8 +112,8 @@
             <option value="50000">50.000</option>
             <option value="100000">100.000</option>
             <option value="200000">200.000</option>
-            <option value="500000">500.000</option>
-            <option value="1000000" selected>1.000.000</option>
+            <option value="500000" selected>500.000</option>
+            <option value="1000000">1.000.000</option>
             <option value="5000000">5.000.000</option>
             <option value="10000000">10.000.000</option>
             <option value="50000000">50.000.000</option>
@@ -207,22 +206,35 @@
             document.getElementById('entry_kpc').value = data.kpc || "";
             document.getElementById('entry_meter').value = data.meter || "";
             document.getElementById('entry_nama').value = data.nama || "";
-            document.getElementById('combo_daya').value = data.daya || "S2/3500 VA";
+            document.getElementById('combo_daya').value = data.daya || "R1/2200 VA";
         }
     }
 
-    // Hitung KWH berdasarkan tarif yang berlaku
+    // Hitung KWH berdasarkan tarif khusus Papua Barat (Manokwari)
     function hitungKWH(nominal, daya) {
-        let tarif = 1444.70; // Tarif Default
         let d = daya.toUpperCase();
         
-        if (d.includes("450")) tarif = 415; // R1/450 dsb
-        else if (d.includes("R1/900")) tarif = 605; // R1/900 Subsidi
-        else if (d.includes("R1M/900")) tarif = 1352; // R1M/900 Non-subsidi
-        else if (d.includes("1300") || d.includes("2200")) tarif = 1444.70;
-        else if (d.includes("3500") || d.includes("4400") || d.includes("5500") || d.includes("6600")) tarif = 1699.53;
+        // Sesuai parameter: Daya 2200VA Rp 500.000 = 657,9 kWh
+        // Tarif = 500.000 / 657,9 = ~759.99392 Rp/kWh
+        const tarifPapua1300_2200 = 500000 / 657.9; 
         
-        // (Rumus standar disederhanakan, menyesuaikan struk aslinya yang PPJ = 0)
+        // Proporsi diskon terhadap tarif nasional untuk menyesuaikan daya lain secara otomatis
+        const rasioDiskon = tarifPapua1300_2200 / 1444.70; 
+
+        let tarif = tarifPapua1300_2200; // Default diatur ke patokan 1300/2200 wilayah timur
+        
+        if (d.includes("450")) {
+            tarif = 415; // Subsidi tetap
+        } else if (d.includes("R1/900")) {
+            tarif = 605; // Subsidi tetap
+        } else if (d.includes("R1M/900")) {
+            tarif = 1352 * rasioDiskon;
+        } else if (d.includes("1300") || d.includes("2200")) {
+            tarif = tarifPapua1300_2200; // Akan menghasilkan persis 657,9 untuk 500rb
+        } else if (d.includes("3500") || d.includes("4400") || d.includes("5500") || d.includes("6600")) {
+            tarif = 1699.53 * rasioDiskon; // Disesuaikan proporsional untuk daya tinggi
+        }
+        
         let kwh = nominal / tarif;
         return kwh.toFixed(1).replace(".", ",");
     }
@@ -284,7 +296,6 @@
     // FUNGSI 1: MEMBANGUN CANVAS MASTER STRUK (Digunakan untuk Simulasi & Print)
     // =========================================================================
     async function buildReceiptCanvas(htmlText, logoSrc, textPhone, textIG, printWidthDots = 576) {
-        // Helper Loading Gambar
         const loadImage = (src) => new Promise((resolve) => {
             const img = new Image();
             img.crossOrigin = "Anonymous";
@@ -311,34 +322,26 @@
         }
         
         totalHeight += (lines.length * lineHeight); 
-        
-        // DITAMBAHKAN ~30px (menjadi 75) UNTUK MENAMBAHKAN 1 SPASI KOSONG DI BAWAH FOOTER
-        totalHeight += 75; 
+        totalHeight += 75; // Jarak ekstra di akhir setruk
 
-        // Buat Master Canvas Virtual
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         canvas.width = Math.floor(printWidthDots / 8) * 8;
         canvas.height = totalHeight;
 
-        // Beri Background Putih Penuh
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         let currentY = 10;
 
-        // ============================
-        // A. GAMBAR LOGO HEADER (TENGAH)
-        // ============================
+        // GAMBAR LOGO HEADER
         if (logoImg) {
             const logoX = (canvas.width - logoWidth) / 2;
             ctx.drawImage(logoImg, logoX, currentY, logoWidth, logoHeight);
             currentY += logoHeight + 20;
         }
 
-        // ============================
-        // B. GAMBAR TEKS STRUK
-        // ============================
+        // GAMBAR TEKS STRUK
         ctx.textBaseline = "top";
         ctx.textAlign = "left";
         for (let line of lines) {
@@ -355,9 +358,7 @@
             currentY += lineHeight;
         }
 
-        // ============================
-        // C. GAMBAR ICON FOOTER (KIRI - KANAN)
-        // ============================
+        // GAMBAR ICON FOOTER
         const margin = 10; 
         const iconSize = 24;
         const gap = 6; 
@@ -366,7 +367,6 @@
         const footerMidY = currentY + (iconSize / 2);
         const footerFont = `22px 'Courier New', Courier, monospace`;
 
-        // Kiri: Telepon
         ctx.textAlign = "left";
         ctx.font = footerFont;
         if (phoneImg) {
@@ -376,7 +376,6 @@
             ctx.fillText("📞 " + textPhone, margin, footerMidY);
         }
 
-        // Kanan: Instagram (ditambahkan text space kosong di akhir parameter)
         ctx.textAlign = "right";
         if (igImg) {
             const textWidth = ctx.measureText(textIG).width;
@@ -445,7 +444,7 @@
             
             const initCmd = new Uint8Array([0x1B, 0x40]); 
             const alignLeftCmd = new Uint8Array([0x1B, 0x61, 0x00]); 
-            const lineFeedCmd = new Uint8Array([0x0A, 0x0A, 0x0A, 0x0A, 0x0A]); // Extra line feed 
+            const lineFeedCmd = new Uint8Array([0x0A, 0x0A, 0x0A, 0x0A, 0x0A]); 
             
             let totalLength = initCmd.length + alignLeftCmd.length;
             for (const chunk of imageChunks) totalLength += chunk.length;
@@ -511,7 +510,6 @@
         const idpel = document.getElementById('combo_idpel').value;
         const nama = document.getElementById('entry_nama').value;
         
-        // Ambil elemen daya (mengabaikan teks kurung subsidi/non-subsidi)
         let dayaRaw = document.getElementById('combo_daya').value;
         const daya = dayaRaw.split(" ")[0] + " VA"; 
 
@@ -521,7 +519,7 @@
 
         const rpBayar = nominalStroom + adminPos;
         
-        // Panggil fungsi JML KWH Otomatis
+        // Perhitungan JML KWH Otomatis (Manokwari)
         let jmlKwh = hitungKWH(nominalStroom, dayaRaw);
 
         const resi = `98356-21/${new Date().getFullYear()}/${Math.floor(Math.random() * 900000) + 100000}`;
@@ -585,11 +583,9 @@
 
         const logoURL = "logo.png"; 
         
-        // Membangun gambar langsung dari render thermal
         const canvas = await buildReceiptCanvas(strukBaseTeks, logoURL, "Halo Pos 1500161", "@posindonesia.ig", 576);
         const dataUrl = canvas.toDataURL("image/png");
 
-        // UI HTML memuat gambar
         document.getElementById('strukOutput').innerHTML = `<img src="${dataUrl}" class="struk-img-preview" alt="Struk Real">`;
         document.getElementById('modalStruk').style.display = 'flex';
 
