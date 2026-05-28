@@ -583,7 +583,7 @@
 
         const logoURL = "logo.png"; 
         
-        const canvas = await buildReceiptCanvas(strukBaseTeks, logoURL, "Halo Pos 1500161", "@posindonesia.ig", 576);
+        const canvas = await buildReceiptCanvas(strukBaseTeks, logoURL, "Halo Pos 1500161", " @posindonesia.ig", 576);
         const dataUrl = canvas.toDataURL("image/png");
 
         document.getElementById('strukOutput').innerHTML = `<img src="${dataUrl}" class="struk-img-preview" alt="Struk Real">`;
