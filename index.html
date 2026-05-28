@@ -76,14 +76,26 @@
         <input type="text" id="entry_kpc" value="Kpc Prafi 98356">
 
         <label>No. Meter:</label>
-        <input type="text" id="entry_meter" value="14510802540">
+        <select id="entry_meter" onchange="autoFillDariMeter()">
+            <option value="">-- Pilih No. Meter --</option>
+            <option value="14510802540">14510802540 (PUSKESMAS)</option>
+            <option value="45044658750">45044658750 (PUSKESMAS)</option>
+            <option value="86252365746">86252365746 (PUSKESMAS PEMBANTU)</option>
+            <option value="45020383704">45020383704 (PUSKESMAS MASNI)</option>
+            <option value="32902140311">32902140311 (PUSKESMAS)</option>
+            <option value="14328640900">14328640900 (G. PERTEMUAN PUSKESMAS)</option>
+            <option value="14508190809">14508190809 (PUSKESMAS SP 7)</option>
+            <option value="14431361311">14431361311 (RUANG OPERASI PUSKESMAS WOSI)</option>
+            <option value="45040449238">45040449238 (DINAS KESEHATAN)</option>
+            <option value="86258516391">86258516391 (PUSKESMAS WARKAPI)</option>
+            <option value="86258533263">86258533263 (PUSKESMAS)</option>
+        </select>
 
-        <label>IDPEL (Pilih/Ketik):</label>
-        <input type="text" id="combo_idpel" value="424230002019" list="idpel_list" onchange="isiOtomatis()">
-        <datalist id="idpel_list"></datalist>
+        <label>IDPEL:</label>
+        <input type="text" id="combo_idpel" value="">
 
         <label>Nama Pelanggan:</label>
-        <input type="text" id="entry_nama" value="P U S K E S M A S">
+        <input type="text" id="entry_nama" value="">
 
         <label>Tarif / Daya:</label>
         <select id="combo_daya">
@@ -149,10 +161,36 @@
     let printerCharacteristic = null;
     let dataTersimpan = { riwayat: {} };
 
+    // Database Pelanggan berdasarkan tabel Excel
+    const dbPelanggan = {
+        "14510802540": { idpel: "424230002019", nama: "PUSKESMAS", daya: "S1/3500 VA" },
+        "45044658750": { idpel: "424230000747", nama: "PUSKESMAS", daya: "S1/2200 VA" },
+        "86252365746": { idpel: "424200048598", nama: "PUSKESMAS PEMBANTU", daya: "S1/900 VA" },
+        "45020383704": { idpel: "424200110048", nama: "PUSKESMAS MASNI", daya: "S1/2200 VA" },
+        "32902140311": { idpel: "424200195473", nama: "PUSKESMAS", daya: "S1/6600 VA" },
+        "14328640900": { idpel: "424200146638", nama: "G. PERTEMUAN PUSKESMAS", daya: "S1/5500 VA" },
+        "14508190809": { idpel: "424250004746", nama: "PUSKESMAS SP 7", daya: "S1/1300 VA" },
+        "14431361311": { idpel: "424100762939", nama: "RUANG OPERASI PUSKESMAS WOSI", daya: "S1/3500 VA" },
+        "45040449238": { idpel: "424200134095", nama: "DINAS KESEHATAN", daya: "S1/5500 VA" },
+        "86258516391": { idpel: "424330000296", nama: "PUSKESMAS WARKAPI", daya: "S1/5500 VA" },
+        "86258533263": { idpel: "424320004333", nama: "PUSKESMAS", daya: "S1/1300 VA" }
+    };
+
     window.onload = function() {
         setWaktuSekarang();
-        loadData();
     };
+
+    function autoFillDariMeter() {
+        const meter = document.getElementById('entry_meter').value;
+        if (dbPelanggan[meter]) {
+            document.getElementById('combo_idpel').value = dbPelanggan[meter].idpel;
+            document.getElementById('entry_nama').value = dbPelanggan[meter].nama;
+            document.getElementById('combo_daya').value = dbPelanggan[meter].daya;
+        } else {
+            document.getElementById('combo_idpel').value = "";
+            document.getElementById('entry_nama').value = "";
+        }
+    }
 
     function setWaktuSekarang() {
         const now = new Date();
@@ -165,27 +203,8 @@
         document.getElementById('entry_tanggal').value = `${dd}-${mm}-${yyyy} ${hh}:${min}:${ss}`;
     }
 
-    function loadData() {
-        const saved = localStorage.getItem('config_pos');
-        if (saved) {
-            try {
-                dataTersimpan = JSON.parse(saved);
-                perbaruiDatalist();
-            } catch (e) { console.error(e); }
-        }
-    }
-
-    function perbaruiDatalist() {
-        const list = document.getElementById('idpel_list');
-        list.innerHTML = '';
-        for (const id in dataTersimpan.riwayat) {
-            const option = document.createElement('option');
-            option.value = id;
-            list.appendChild(option);
-        }
-    }
-
     function saveData() {
+        // Cache histori transaksi (Opsional - menjaga fungsi awal)
         const idpel = document.getElementById('combo_idpel').value.trim();
         if (idpel) {
             dataTersimpan.riwayat[idpel] = {
@@ -195,22 +214,10 @@
                 daya: document.getElementById('combo_daya').value
             };
             localStorage.setItem('config_pos', JSON.stringify(dataTersimpan));
-            perbaruiDatalist();
         }
     }
 
-    function isiOtomatis() {
-        const idpel = document.getElementById('combo_idpel').value;
-        if (dataTersimpan.riwayat[idpel]) {
-            const data = dataTersimpan.riwayat[idpel];
-            document.getElementById('entry_kpc').value = data.kpc || "";
-            document.getElementById('entry_meter').value = data.meter || "";
-            document.getElementById('entry_nama').value = data.nama || "";
-            document.getElementById('combo_daya').value = data.daya || "R1/2200 VA";
-        }
-    }
-
-    // Hitung KWH berdasarkan tarif khusus Papua Barat (Manokwari)
+    // Hitung KWH berdasarkan tarif khusus
     function hitungKWH(nominal, daya) {
         let d = daya.toUpperCase();
         
@@ -507,6 +514,13 @@
 
         const kpc = document.getElementById('entry_kpc').value;
         const meter = document.getElementById('entry_meter').value;
+        
+        // Memvalidasi apakah meter telah dipilih
+        if (!meter) {
+            alert("Silakan pilih No. Meter terlebih dahulu!");
+            return;
+        }
+        
         const idpel = document.getElementById('combo_idpel').value;
         const nama = document.getElementById('entry_nama').value;
         
@@ -519,7 +533,7 @@
 
         const rpBayar = nominalStroom + adminPos;
         
-        // Perhitungan JML KWH Otomatis (Manokwari)
+        // Perhitungan JML KWH Otomatis
         let jmlKwh = hitungKWH(nominalStroom, dayaRaw);
 
         const resi = `98356-21/${new Date().getFullYear()}/${Math.floor(Math.random() * 900000) + 100000}`;
